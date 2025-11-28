@@ -1,0 +1,5 @@
+{
+  "name": "ExamPro 2018 Standard",
+  "description": "A comprehensive online testing platform compliant with the Vietnamese 2018 General Education Program. Features teacher exam creation via AI parsing and a robust student testing interface with automated grading.",
+  "requestFramePermissions": []
+}
