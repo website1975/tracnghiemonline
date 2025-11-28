@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Exam, StoredResult } from '../types';
 import { db } from '../services/supabaseClient';
-import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, ExternalLink, Key, Play } from 'lucide-react';
+import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, ExternalLink, Key, Play, Lock } from 'lucide-react';
 
 interface TeacherDashboardProps {
   onCreateExam: () => void;
@@ -29,7 +29,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
   const [dbConfig, setDbConfig] = useState({
     url: localStorage.getItem('SB_URL') || '',
     key: localStorage.getItem('SB_KEY') || '',
-    geminiKey: localStorage.getItem('GEMINI_API_KEY') || ''
+    geminiKey: localStorage.getItem('GEMINI_API_KEY') || '',
+    adminPassword: localStorage.getItem('TEACHER_PASSWORD') || '123456'
   });
 
   useEffect(() => {
@@ -81,6 +82,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         localStorage.setItem('GEMINI_API_KEY', dbConfig.geminiKey);
     } else {
         localStorage.removeItem('GEMINI_API_KEY');
+    }
+
+    // Lưu mật khẩu admin
+    if (dbConfig.adminPassword) {
+        localStorage.setItem('TEACHER_PASSWORD', dbConfig.adminPassword);
     }
     
     alert('Đã lưu cấu hình! Vui lòng tải lại trang để áp dụng.');
@@ -284,6 +290,24 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
              </div>
              
              <div className="p-6 space-y-6">
+                
+                {/* 0. Security Config */}
+                <div className="space-y-4 pb-6 border-b">
+                   <h4 className="font-bold text-gray-800 flex items-center gap-2">
+                     <Lock className="w-4 h-4 text-red-600" /> 0. Bảo mật
+                   </h4>
+                   <p className="text-sm text-gray-600">
+                     Đặt mật khẩu để ngăn học sinh vào trang Giáo viên.
+                   </p>
+                   <input 
+                      type="text" 
+                      value={dbConfig.adminPassword}
+                      onChange={(e) => setDbConfig({...dbConfig, adminPassword: e.target.value})}
+                      placeholder="Mặc định: 123456"
+                      className="w-full p-2 border border-red-200 rounded focus:ring-red-500"
+                   />
+                </div>
+
                 {/* 1. Gemini Config */}
                 <div className="space-y-4 pb-6 border-b">
                    <h4 className="font-bold text-gray-800 flex items-center gap-2">
