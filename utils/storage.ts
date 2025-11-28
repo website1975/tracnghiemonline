@@ -1,4 +1,3 @@
-
 import { Exam, GradingResult, StudentInfo, StoredResult } from '../types';
 
 const KEYS = {
@@ -37,7 +36,9 @@ export const storage = {
   // --- Results ---
   saveResult: (result: StoredResult) => {
     const results = storage.getAllResults();
-    results.push(result);
+    // Add a fake ID for local storage manipulation
+    const newResult = { ...result, id: crypto.randomUUID() };
+    results.push(newResult);
     localStorage.setItem(KEYS.RESULTS, JSON.stringify(results));
   },
 
@@ -53,5 +54,22 @@ export const storage = {
   getResultsByExamId: (examId: string): StoredResult[] => {
     const results = storage.getAllResults();
     return results.filter(r => r.examId === examId).sort((a, b) => b.completedAt - a.completedAt);
+  },
+
+  updateResultScore: (resultId: string, newScore: number) => {
+    const results = storage.getAllResults();
+    const updated = results.map(r => {
+      if (r.id === resultId) {
+        return { 
+          ...r, 
+          result: { 
+            ...r.result, 
+            score: newScore 
+          } 
+        };
+      }
+      return r;
+    });
+    localStorage.setItem(KEYS.RESULTS, JSON.stringify(updated));
   }
 };
