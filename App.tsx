@@ -5,7 +5,7 @@ import { ResultView } from './components/ResultView';
 import { TeacherDashboard } from './components/TeacherDashboard';
 import { Exam, StudentAnswers, StudentInfo } from './types';
 import { db } from './services/supabaseClient';
-import { GraduationCap, BookOpen, User, AlertTriangle, Loader2 } from 'lucide-react';
+import { GraduationCap, BookOpen, User, AlertTriangle, Loader2, Lock, X } from 'lucide-react';
 
 enum AppState {
   HOME = 'HOME',
@@ -22,6 +22,11 @@ function App() {
   const [studentInfo, setStudentInfo] = useState<StudentInfo>({ name: '', classId: '', studentId: '' });
   const [studentAnswers, setStudentAnswers] = useState<StudentAnswers | null>(null);
   const [isLoadingExam, setIsLoadingExam] = useState(false);
+
+  // Teacher Login State
+  const [showTeacherLogin, setShowTeacherLogin] = useState(false);
+  const [teacherPassword, setTeacherPassword] = useState('');
+  const [loginError, setLoginError] = useState(false);
 
   // Check URL params on load
   useEffect(() => {
@@ -90,10 +95,23 @@ function App() {
     }
   };
 
+  const handleTeacherLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    const storedPass = localStorage.getItem('TEACHER_PASSWORD') || '123456';
+    if (teacherPassword === storedPass) {
+      setAppState(AppState.TEACHER_DASHBOARD);
+      setShowTeacherLogin(false);
+      setTeacherPassword('');
+      setLoginError(false);
+    } else {
+      setLoginError(true);
+    }
+  };
+
   // --- Render Functions ---
 
   const renderHome = () => (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-50 flex items-center justify-center p-4 relative">
       {isLoadingExam ? (
         <div className="bg-white p-8 rounded-2xl shadow-xl flex flex-col items-center">
            <Loader2 className="w-10 h-10 text-blue-600 animate-spin mb-4" />
@@ -127,7 +145,7 @@ function App() {
             </div>
 
             <button
-              onClick={() => setAppState(AppState.TEACHER_DASHBOARD)}
+              onClick={() => setShowTeacherLogin(true)}
               className="group relative flex items-center p-4 border-2 border-gray-100 rounded-2xl hover:border-blue-500 hover:bg-blue-50 transition-all duration-300"
             >
               <div className="bg-blue-100 p-3 rounded-xl mr-4 group-hover:bg-blue-600 transition-colors">
@@ -149,6 +167,37 @@ function App() {
                <AlertTriangle className="w-5 h-5 flex-shrink-0" />
                <p>Học sinh vui lòng truy cập qua <strong>đường link</strong> giáo viên gửi để vào thẳng bài thi.</p>
              </div>
+          </div>
+        </div>
+      )}
+
+      {/* Teacher Login Modal */}
+      {showTeacherLogin && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-sm w-full p-6 animate-in fade-in zoom-in-95">
+             <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg text-gray-900 flex items-center gap-2">
+                  <Lock className="w-5 h-5 text-blue-600" /> Đăng nhập Giáo viên
+                </h3>
+                <button onClick={() => setShowTeacherLogin(false)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+             </div>
+             <form onSubmit={handleTeacherLogin}>
+                <p className="text-sm text-gray-600 mb-3">Vui lòng nhập mật khẩu quản trị.</p>
+                <input 
+                  autoFocus
+                  type="password" 
+                  placeholder="Mật khẩu (Mặc định: 123456)"
+                  className="w-full p-3 border rounded-lg mb-2 focus:ring-2 focus:ring-blue-500 outline-none"
+                  value={teacherPassword}
+                  onChange={(e) => setTeacherPassword(e.target.value)}
+                />
+                {loginError && <p className="text-xs text-red-500 mb-3">Mật khẩu không đúng.</p>}
+                <button type="submit" className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-lg hover:bg-blue-700">
+                  Truy cập
+                </button>
+             </form>
           </div>
         </div>
       )}
