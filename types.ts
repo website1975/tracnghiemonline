@@ -74,6 +74,7 @@ export interface StoredResult {
   examId: string;
   studentInfo: StudentInfo;
   result: GradingResult;
+  answers?: StudentAnswers; // Added: Store detailed answers
   completedAt: number;
   timeSpent: number;
 }
