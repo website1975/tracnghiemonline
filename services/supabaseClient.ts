@@ -1,3 +1,4 @@
+
 import { createClient } from '@supabase/supabase-js';
 import { Exam, StoredResult } from '../types';
 import { storage } from '../utils/storage';
@@ -108,7 +109,10 @@ export const db = {
         details: data.result.details,
         time_spent: data.timeSpent
       });
-      if (error) console.error("Lỗi lưu kết quả:", error);
+      if (error) {
+        console.error("Lỗi lưu kết quả:", error);
+        alert("Không thể lưu kết quả. Vui lòng kiểm tra kết nối mạng.");
+      }
     } else {
       storage.saveResult(data);
     }
@@ -127,6 +131,7 @@ export const db = {
       if (error || !data) return [];
       
       return data.map((row: any) => ({
+        id: row.id, // Map ID from DB
         examId: row.exam_id,
         studentInfo: { name: row.student_name, studentId: row.student_id, classId: '' },
         result: { score: row.score, details: row.details, maxScore: 10 },
@@ -135,6 +140,26 @@ export const db = {
       }));
     } else {
       return storage.getResultsByExamId(examId);
+    }
+  },
+
+  // 7. Cập nhật điểm số (Cho giáo viên sửa điểm)
+  updateResultScore: async (resultId: string, newScore: number): Promise<boolean> => {
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase
+        .from('results')
+        .update({ score: newScore })
+        .eq('id', resultId);
+      
+      if (error) {
+        console.error("Lỗi cập nhật điểm:", error);
+        return false;
+      }
+      return true;
+    } else {
+      storage.updateResultScore(resultId, newScore);
+      return true;
     }
   }
 };
