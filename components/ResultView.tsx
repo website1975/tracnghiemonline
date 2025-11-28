@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { Exam, GradingResult, StudentAnswers, StudentInfo } from '../types';
 import { calculateScore } from '../utils/grading';
@@ -27,13 +28,14 @@ export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentIn
               examId: exam.id,
               studentInfo,
               result,
+              answers, // QUAN TRỌNG: Gửi kèm bài làm chi tiết
               completedAt: Date.now(),
               timeSpent
           });
       }
     };
     save();
-  }, [exam.id, studentInfo, result, timeSpent]);
+  }, [exam.id, studentInfo, result, timeSpent, answers]);
   
   // Helpers
   const renderOptionStatus = (qId: string, optIdx: number, correctIdx: number) => {
