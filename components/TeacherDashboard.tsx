@@ -1,7 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { Exam, StoredResult } from '../types';
 import { db } from '../services/supabaseClient';
-import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, ExternalLink, Key, Play, Lock } from 'lucide-react';
+import { MathRenderer } from './MathRenderer';
+import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, ExternalLink, Key, Play, Lock, Edit2, Save, CheckCircle } from 'lucide-react';
 
 interface TeacherDashboardProps {
   onCreateExam: () => void;
@@ -23,6 +25,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
   
   // Share Modal State
   const [shareData, setShareData] = useState<ShareModalData | null>(null);
+  
+  // View Exam Content Modal
+  const [viewingExam, setViewingExam] = useState<Exam | null>(null);
+
+  // Edit Score State
+  const [editingResultId, setEditingResultId] = useState<string | null>(null);
+  const [editScoreValue, setEditScoreValue] = useState<string>('');
   
   // Deploy/Config Modal
   const [showDeployGuide, setShowDeployGuide] = useState(false);
@@ -72,6 +81,33 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
     setSelectedExamId(examId);
     setResults(await db.getResultsByExam(examId));
     setActiveTab('results');
+  };
+
+  // Start Editing Score
+  const handleEditScore = (result: StoredResult) => {
+    if (!result.id) return;
+    setEditingResultId(result.id);
+    setEditScoreValue(result.result.score.toString());
+  };
+
+  // Save New Score
+  const handleSaveScore = async (resultId: string) => {
+    const newScore = parseFloat(editScoreValue);
+    if (isNaN(newScore) || newScore < 0 || newScore > 10) {
+      alert("Vui lòng nhập điểm hợp lệ (0-10)");
+      return;
+    }
+
+    const success = await db.updateResultScore(resultId, newScore);
+    if (success) {
+      // Update local state to reflect change without reload
+      setResults(prev => prev.map(r => 
+        r.id === resultId ? { ...r, result: { ...r.result, score: newScore } } : r
+      ));
+      setEditingResultId(null);
+    } else {
+      alert("Lỗi khi cập nhật điểm. Vui lòng thử lại.");
+    }
   };
 
   const saveConfig = () => {
@@ -169,6 +205,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                     
                     <div className="flex items-center gap-3">
                       <button
+                        onClick={() => setViewingExam(exam)}
+                        className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg flex items-center gap-2 text-sm border border-indigo-100 font-medium"
+                        title="Xem chi tiết Đề & Đáp án"
+                      >
+                         <Eye className="w-4 h-4" /> Xem đề
+                      </button>
+                      <button
                         onClick={() => onTestExam(exam)}
                         className="p-2 text-purple-600 hover:bg-purple-50 rounded-lg flex items-center gap-2 text-sm border border-purple-100 font-medium"
                         title="Thi thử ngay (Dành cho Giáo viên check đề)"
@@ -180,7 +223,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                         className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg flex items-center gap-2 text-sm"
                         title="Xem kết quả"
                       >
-                        <Eye className="w-4 h-4" /> Kết quả
+                        <Users className="w-4 h-4" /> Kết quả
                       </button>
                       <button
                         onClick={() => handleOpenShare(exam)}
@@ -217,10 +260,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                   &larr; Quay lại danh sách
                 </button>
                 <div className="bg-white rounded-xl border overflow-hidden">
-                  <div className="p-4 bg-gray-50 border-b">
+                  <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
                     <h3 className="font-bold text-gray-700">
                        {exams.find(e => e.id === selectedExamId)?.title || 'Đề thi đã xóa'}
                     </h3>
+                    <div className="text-xs text-blue-600 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded">
+                       <Edit2 className="w-3 h-3" /> Chế độ sửa điểm: Bấm vào biểu tượng bút để sửa
+                    </div>
                   </div>
                   {results.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">Chưa có kết quả nào.</div>
@@ -234,6 +280,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                             <th className="p-4">Điểm số</th>
                             <th className="p-4">Thời gian làm</th>
                             <th className="p-4">Ngày nộp</th>
+                            <th className="p-4 w-10"></th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -242,9 +289,47 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                               <td className="p-4 font-medium text-gray-900">{r.studentInfo.name}</td>
                               <td className="p-4 text-gray-500">{r.studentInfo.studentId}</td>
                               <td className="p-4">
-                                <span className={`px-2 py-1 rounded font-bold ${r.result.score >= 5 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                                  {r.result.score.toFixed(2)}
-                                </span>
+                                {editingResultId === r.id ? (
+                                   <div className="flex items-center gap-2">
+                                      <input 
+                                        type="number"
+                                        step="0.1"
+                                        min="0"
+                                        max="10"
+                                        className="w-20 p-1 border border-blue-400 rounded focus:outline-none"
+                                        value={editScoreValue}
+                                        onChange={(e) => setEditScoreValue(e.target.value)}
+                                        autoFocus
+                                      />
+                                      <button 
+                                        onClick={() => r.id && handleSaveScore(r.id)}
+                                        className="p-1 text-green-600 hover:bg-green-100 rounded"
+                                      >
+                                         <Save className="w-4 h-4" />
+                                      </button>
+                                      <button 
+                                        onClick={() => setEditingResultId(null)}
+                                        className="p-1 text-red-600 hover:bg-red-100 rounded"
+                                      >
+                                         <X className="w-4 h-4" />
+                                      </button>
+                                   </div>
+                                ) : (
+                                   <div className="flex items-center gap-2 group">
+                                      <span className={`px-2 py-1 rounded font-bold ${r.result.score >= 5 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {r.result.score.toFixed(2)}
+                                      </span>
+                                      {r.id && (
+                                        <button 
+                                           onClick={() => handleEditScore(r)}
+                                           className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity"
+                                           title="Sửa điểm"
+                                        >
+                                           <Edit2 className="w-3 h-3" />
+                                        </button>
+                                      )}
+                                   </div>
+                                )}
                               </td>
                               <td className="p-4 text-gray-500">{Math.round(r.timeSpent / 60)} phút</td>
                               <td className="p-4 text-gray-500">{new Date(r.completedAt).toLocaleString()}</td>
@@ -461,6 +546,103 @@ create policy "Public Results Access" on results for all using (true);`}</pre>
                 Đóng cửa sổ
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Exam Content Modal */}
+      {viewingExam && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+             <div className="p-5 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                <div>
+                   <h2 className="text-xl font-bold text-gray-900">{viewingExam.title}</h2>
+                   <p className="text-sm text-gray-500">Chế độ xem đề & đáp án (Read-only)</p>
+                </div>
+                <button onClick={() => setViewingExam(null)} className="p-2 hover:bg-gray-200 rounded-full">
+                  <X className="w-6 h-6 text-gray-500" />
+                </button>
+             </div>
+             
+             <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                {/* Part 1 */}
+                {viewingExam.part1.length > 0 && (
+                   <section>
+                      <h3 className="font-bold text-blue-700 border-b pb-2 mb-4">Phần 1: Trắc nghiệm</h3>
+                      <div className="space-y-6">
+                         {viewingExam.part1.map((q, idx) => (
+                            <div key={q.id} className="bg-white p-4 border rounded-lg">
+                               <div className="flex gap-2 mb-3">
+                                  <span className="font-bold text-blue-600">Câu {idx + 1}:</span>
+                                  <div><MathRenderer text={q.text} /></div>
+                               </div>
+                               <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-4">
+                                  {q.options.map((opt, oIdx) => (
+                                     <div key={oIdx} className={`p-2 rounded text-sm border flex items-center justify-between
+                                        ${oIdx === q.correctOption ? 'bg-green-50 border-green-200 text-green-800 font-medium' : 'border-gray-100 text-gray-600'}`}>
+                                        <span><MathRenderer text={opt} inline /></span>
+                                        {oIdx === q.correctOption && <CheckCircle className="w-4 h-4 text-green-600" />}
+                                     </div>
+                                  ))}
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   </section>
+                )}
+
+                {/* Part 2 */}
+                {viewingExam.part2.length > 0 && (
+                   <section>
+                      <h3 className="font-bold text-indigo-700 border-b pb-2 mb-4">Phần 2: Đúng/Sai</h3>
+                      <div className="space-y-6">
+                         {viewingExam.part2.map((q, idx) => (
+                            <div key={q.id} className="bg-gray-50 p-4 border rounded-lg">
+                               <div className="flex gap-2 mb-3">
+                                  <span className="font-bold text-indigo-600">Câu {idx + 1}:</span>
+                                  <div><MathRenderer text={q.text} /></div>
+                               </div>
+                               <div className="ml-4 space-y-2">
+                                  {q.subQuestions.map((sub, sIdx) => (
+                                     <div key={sub.id} className="flex justify-between items-center bg-white p-2 rounded border">
+                                        <span className="text-sm"><MathRenderer text={sub.text} inline /></span>
+                                        <span className={`text-xs font-bold px-2 py-1 rounded ${sub.isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                           {sub.isCorrect ? 'ĐÚNG' : 'SAI'}
+                                        </span>
+                                     </div>
+                                  ))}
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   </section>
+                )}
+
+                {/* Part 3 */}
+                {viewingExam.part3.length > 0 && (
+                   <section>
+                      <h3 className="font-bold text-emerald-700 border-b pb-2 mb-4">Phần 3: Trả lời ngắn</h3>
+                      <div className="space-y-4">
+                         {viewingExam.part3.map((q, idx) => (
+                            <div key={q.id} className="bg-white p-4 border rounded-lg flex flex-col md:flex-row gap-4">
+                               <div className="flex-1">
+                                  <div className="flex gap-2">
+                                     <span className="font-bold text-emerald-600">Câu {idx + 1}:</span>
+                                     <div><MathRenderer text={q.text} /></div>
+                                  </div>
+                               </div>
+                               <div className="min-w-[150px]">
+                                  <span className="text-xs text-gray-500 uppercase font-bold block mb-1">Đáp án đúng</span>
+                                  <div className="p-2 bg-green-50 border border-green-200 text-green-800 font-bold rounded">
+                                     {q.correctAnswer}
+                                  </div>
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   </section>
+                )}
+             </div>
           </div>
         </div>
       )}
