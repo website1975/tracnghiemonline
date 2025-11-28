@@ -70,6 +70,7 @@ export interface GradingResult {
 }
 
 export interface StoredResult {
+  id?: string; // Optional ID from Database for updating
   examId: string;
   studentInfo: StudentInfo;
   result: GradingResult;
