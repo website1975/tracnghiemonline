@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Exam, StoredResult } from '../types';
 import { db } from '../services/supabaseClient';
@@ -143,7 +142,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-blue-700">Trang Giáo Viên</h1>
-            <span className="px-2 py-0.5 bg-blue-100 text-blue-800 text-xs rounded-full font-medium">Admin</span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm animate-pulse">v2.2 (Live)</span>
           </div>
           <div className="flex gap-3">
              <button 
@@ -270,9 +269,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                     <h3 className="font-bold text-gray-700">
                        {exams.find(e => e.id === selectedExamId)?.title || 'Đề thi đã xóa'}
                     </h3>
-                    <div className="text-xs text-blue-600 flex items-center gap-1 bg-blue-50 px-2 py-1 rounded">
-                       <Edit2 className="w-3 h-3" /> Chế độ sửa điểm: Bấm vào biểu tượng bút để sửa
-                    </div>
                   </div>
                   {results.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">Chưa có kết quả nào.</div>
@@ -320,17 +316,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                                       </button>
                                    </div>
                                 ) : (
-                                   <div className="flex items-center gap-2 group">
+                                   <div className="flex items-center gap-2">
                                       <span className={`px-2 py-1 rounded font-bold ${r.result.score >= 5 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
                                         {r.result.score.toFixed(2)}
                                       </span>
                                       {r.id && (
                                         <button 
                                            onClick={() => handleEditScore(r)}
-                                           className="opacity-0 group-hover:opacity-100 text-gray-400 hover:text-blue-600 transition-opacity"
+                                           className="text-gray-400 hover:text-blue-600 transition-colors"
                                            title="Sửa điểm"
                                         >
-                                           <Edit2 className="w-3 h-3" />
+                                           <Edit2 className="w-4 h-4" />
                                         </button>
                                       )}
                                    </div>
@@ -340,12 +336,12 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                                  {r.answers ? (
                                     <button 
                                       onClick={() => handleViewStudentDetail(r)}
-                                      className="flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded border border-blue-100 shadow-sm"
+                                      className="flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200 font-medium shadow-sm"
                                     >
                                        <Eye className="w-3 h-3" /> Xem bài
                                     </button>
                                  ) : (
-                                    <span className="text-gray-400 italic text-xs">Không có dữ liệu</span>
+                                    <span className="text-gray-400 italic text-xs bg-gray-100 px-2 py-1 rounded">Dữ liệu cũ</span>
                                  )}
                               </td>
                               <td className="p-4 text-gray-500">{new Date(r.completedAt).toLocaleString()}</td>
