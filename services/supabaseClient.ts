@@ -100,14 +100,14 @@ export const db = {
   saveResult: async (data: StoredResult) => {
     const supabase = getSupabase();
     if (supabase) {
-      // FIX: Không gửi trường 'answers' vì bảng SQL chưa có cột này
       const { error } = await supabase.from('results').insert({
         exam_id: data.examId,
         student_name: data.studentInfo.name,
         student_id: data.studentInfo.studentId,
         score: data.result.score,
         details: data.result.details,
-        time_spent: data.timeSpent
+        time_spent: data.timeSpent,
+        answers: data.answers // Đã mở khóa: Lưu chi tiết bài làm
       });
       if (error) {
         console.error("Lỗi lưu kết quả:", error);
@@ -131,12 +131,13 @@ export const db = {
       if (error || !data) return [];
       
       return data.map((row: any) => ({
-        id: row.id, // Map ID from DB
+        id: row.id,
         examId: row.exam_id,
         studentInfo: { name: row.student_name, studentId: row.student_id, classId: '' },
         result: { score: row.score, details: row.details, maxScore: 10 },
         completedAt: new Date(row.created_at).getTime(),
-        timeSpent: row.time_spent
+        timeSpent: row.time_spent,
+        answers: row.answers // Đã mở khóa: Đọc chi tiết bài làm
       }));
     } else {
       return storage.getResultsByExamId(examId);
