@@ -41,6 +41,7 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
   // If text is empty/undefined
   if (!text) return null;
 
+  // Use span by default for inline text to prevent layout breaks
   const Tag = inline ? 'span' : 'div';
 
   return (
