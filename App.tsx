@@ -65,6 +65,25 @@ function App() {
     checkUrlForExam();
   }, []);
 
+  // Persistence for Student Login
+  useEffect(() => {
+    const stored = localStorage.getItem('EXAMPRO_STUDENT');
+    if (stored) {
+      try {
+        const { info, account } = JSON.parse(stored);
+        setStudentInfo(info);
+        setStudentAccount(account);
+        // If not deep linking to an exam, go to dashboard
+        const params = new URLSearchParams(window.location.search);
+        if (!params.get('examId')) {
+          setAppState(AppState.STUDENT_DASHBOARD);
+        }
+      } catch (e) {
+        localStorage.removeItem('EXAMPRO_STUDENT');
+      }
+    }
+  }, []);
+
   const handleExamCreated = async (exam: Exam) => {
     await db.saveExam(exam);
     setExamToEdit(null); // Clear edit state
@@ -74,6 +93,9 @@ function App() {
   const handleLoginSuccess = (info: StudentInfo, account: StudentAccount) => {
     setStudentInfo(info);
     setStudentAccount(account);
+    // Persist login
+    localStorage.setItem('EXAMPRO_STUDENT', JSON.stringify({ info, account }));
+
     if (currentExam) {
       // Nếu có đề thi (từ link), vào thi luôn
       setAppState(AppState.STUDENT_EXAM);
@@ -89,6 +111,11 @@ function App() {
     setIsLoadingExam(false);
     if (exam) {
       setCurrentExam(exam);
+      // Ensure student info has correct account ID
+      if (studentAccount) {
+         setStudentInfo(prev => ({ ...prev, accountId: studentAccount.id }));
+      }
+      setStudentAnswers(null); // Reset answers
       setAppState(AppState.STUDENT_EXAM);
     }
   };
@@ -139,19 +166,28 @@ function App() {
   const handleStudentLogout = () => {
     setStudentAccount(null);
     setStudentInfo({ name: '', classId: '', studentId: '' });
+    localStorage.removeItem('EXAMPRO_STUDENT');
     setAppState(AppState.HOME);
   };
 
   const handleRetry = () => {
+    // 1. Reset dữ liệu bài làm cũ
+    setStudentAnswers(null);
+    setReviewResult(null);
+
+    // 2. Kiểm tra: Nếu là thi thật (có Link) -> Reload trang
     const params = new URLSearchParams(window.location.search);
     if (params.get('examId')) {
-      // Nếu là thi thật (có ID trên URL), reload trang để reset sạch sẽ timer và state
       window.location.reload();
+      return;
+    }
+
+    // 3. Nếu đang ở Dashboard (có tài khoản) -> Chuyển ngay sang màn hình thi (STUDENT_EXAM)
+    // Thay vì về Dashboard như trước
+    if (studentAccount) {
+         setAppState(AppState.STUDENT_EXAM);
     } else {
-      // Nếu là thi thử, quay lại login (hoặc dashboard nếu đã login)
-      setStudentAnswers(null);
-      if (studentAccount) setAppState(AppState.STUDENT_DASHBOARD);
-      else setAppState(AppState.STUDENT_LOGIN);
+         setAppState(AppState.STUDENT_LOGIN);
     }
   };
 
@@ -335,8 +371,9 @@ function App() {
           answers={studentAnswers}
           studentInfo={studentInfo}
           timeSpent={reviewResult?.timeSpent || (currentExam.durationMinutes * 60)} // Use stored time if reviewing
-          onRetry={appState === AppState.STUDENT_REVIEW ? handleGoHome : handleRetry} // If review, button goes back to dash
+          onRetry={handleRetry}
           onBack={handleGoHome}
+          isHistoryMode={appState === AppState.STUDENT_REVIEW}
         />
       )}
     </>
