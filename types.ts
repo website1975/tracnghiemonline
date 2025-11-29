@@ -47,10 +47,20 @@ export interface Exam {
   createdAt: number;
 }
 
+// Cập nhật: StudentInfo giờ có thể liên kết với tài khoản
 export interface StudentInfo {
   name: string;
   classId: string;
-  studentId: string;
+  studentId: string; // Mã SV (hiển thị)
+  accountId?: string; // ID tài khoản trong DB (ẩn)
+}
+
+export interface StudentAccount {
+  id: string;
+  full_name: string;
+  class_name: string;
+  username: string;
+  password?: string;
 }
 
 export interface StudentAnswers {
@@ -77,4 +87,8 @@ export interface StoredResult {
   answers?: StudentAnswers; // Added: Store detailed answers
   completedAt: number;
   timeSpent: number;
+  
+  // Dùng để hiển thị trong lịch sử
+  examTitle?: string;
+  examSubject?: string;
 }
