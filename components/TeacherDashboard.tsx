@@ -1,13 +1,15 @@
+
 import React, { useState, useEffect } from 'react';
 import { Exam, StoredResult } from '../types';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, ExternalLink, Key, Play, Lock, Edit2, Save, CheckCircle, XCircle } from 'lucide-react';
+import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, ExternalLink, Key, Play, Lock, Edit2, Save, CheckCircle, XCircle, PenTool } from 'lucide-react';
 
 interface TeacherDashboardProps {
   onCreateExam: () => void;
   onExit: () => void;
   onTestExam: (exam: Exam) => void;
+  onEditExam: (exam: Exam) => void; // New Prop for Editing
 }
 
 interface ShareModalData {
@@ -16,7 +18,7 @@ interface ShareModalData {
   url: string;
 }
 
-export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam, onExit, onTestExam }) => {
+export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam, onExit, onTestExam, onEditExam }) => {
   const [exams, setExams] = useState<Exam[]>([]);
   const [activeTab, setActiveTab] = useState<'exams' | 'results'>('exams');
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
@@ -142,7 +144,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-blue-700">Trang Giáo Viên</h1>
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm animate-pulse">v2.2 (Live)</span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm animate-pulse">v3.0 (Full Edit)</span>
           </div>
           <div className="flex gap-3">
              <button 
@@ -159,6 +161,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-6">
+        {/* ... (Giữ nguyên thanh tab) ... */}
         <div className="flex gap-4 mb-8">
           <button
             onClick={() => setActiveTab('exams')}
@@ -210,6 +213,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                     
                     <div className="flex items-center gap-3">
                       <button
+                        onClick={() => onEditExam(exam)}
+                        className="p-2 text-orange-600 hover:bg-orange-50 rounded-lg flex items-center gap-2 text-sm border border-orange-100 font-medium"
+                        title="Sửa đề thi"
+                      >
+                         <PenTool className="w-4 h-4" /> Sửa đề
+                      </button>
+                      <button
                         onClick={() => setViewingExam(exam)}
                         className="p-2 text-indigo-600 hover:bg-indigo-50 rounded-lg flex items-center gap-2 text-sm border border-indigo-100 font-medium"
                         title="Xem chi tiết Đề & Đáp án"
@@ -252,10 +262,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
           </div>
         )}
 
+        {/* ... (Giữ nguyên phần Results Tab) ... */}
         {activeTab === 'results' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-800">Kết quả làm bài</h2>
-            
+            {/* ... (Giữ nguyên code hiển thị kết quả cũ) ... */}
             {selectedExamId ? (
               <div>
                 <button 
@@ -265,7 +276,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                   &larr; Quay lại danh sách
                 </button>
                 <div className="bg-white rounded-xl border overflow-hidden">
-                  <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
+                   {/* ... Table Header ... */}
+                   <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
                     <h3 className="font-bold text-gray-700">
                        {exams.find(e => e.id === selectedExamId)?.title || 'Đề thi đã xóa'}
                     </h3>
@@ -354,6 +366,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                 </div>
               </div>
             ) : (
+               // ... List of exams for results ...
               <div className="grid gap-4">
                  <p className="text-gray-500 mb-2">Chọn một đề thi để xem danh sách điểm:</p>
                  {exams.map(exam => (
@@ -375,10 +388,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         )}
       </main>
 
-      {/* Deploy Guide Modal */}
+      {/* ... (Giữ nguyên Modal Deploy Guide & Share Modal) ... */}
       {showDeployGuide && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+            {/* ... Content of Deploy Guide ... */}
+            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
              <div className="p-6 border-b sticky top-0 bg-white z-10 flex justify-between items-center">
                 <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                    <Settings className="w-5 h-5 text-blue-600" /> Cấu hình Hệ thống
@@ -494,80 +508,80 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
                 </div>
              </div>
           </div>
-        </div>
+         </div>
       )}
 
-      {/* Share Modal */}
       {shareData && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-4 bg-blue-600 flex justify-between items-center text-white">
-               <h3 className="font-bold text-lg">Chia sẻ đề thi</h3>
-               <button onClick={() => setShareData(null)} className="hover:bg-blue-700 p-1 rounded">
-                 <X className="w-5 h-5" />
-               </button>
-            </div>
-            
-            <div className="p-6 space-y-6">
-               <div className="text-center">
-                  <p className="font-medium text-gray-900 mb-1">{shareData.title}</p>
-                  <p className="text-sm text-gray-500">Quét mã QR để vào thi ngay</p>
-               </div>
+         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+             {/* ... Share Modal Content ... */}
+             <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-4 bg-blue-600 flex justify-between items-center text-white">
+                <h3 className="font-bold text-lg">Chia sẻ đề thi</h3>
+                <button onClick={() => setShareData(null)} className="hover:bg-blue-700 p-1 rounded">
+                    <X className="w-5 h-5" />
+                </button>
+                </div>
+                
+                <div className="p-6 space-y-6">
+                <div className="text-center">
+                    <p className="font-medium text-gray-900 mb-1">{shareData.title}</p>
+                    <p className="text-sm text-gray-500">Quét mã QR để vào thi ngay</p>
+                </div>
 
-               <div className="flex justify-center">
-                  <div className="p-4 bg-white border-2 border-gray-100 rounded-xl shadow-inner">
-                    <img 
-                      src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareData.url)}`}
-                      alt="QR Code"
-                      className="w-40 h-40"
-                    />
-                  </div>
-               </div>
-
-               <div className="space-y-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase">Hoặc gửi đường dẫn</label>
-                  <div className="flex gap-2">
-                    <input 
-                      type="text" 
-                      readOnly 
-                      value={shareData.url}
-                      className="flex-1 bg-gray-50 border rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none"
-                    />
-                    <button 
-                      onClick={handleCopyLink}
-                      className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-2"
-                    >
-                       <Copy className="w-4 h-4" />
-                    </button>
-                  </div>
-                  {isBlobUrl && (
-                    <div className="bg-red-50 text-red-800 text-xs p-2 rounded border border-red-100 mt-2 flex items-center gap-2">
-                       <CloudLightning className="w-4 h-4 flex-shrink-0" />
-                       <span>Lưu ý: Bạn đang chạy trên môi trường Test (blob). Link này KHÔNG gửi được. Hãy dùng nút <strong>"Thi thử"</strong> bên ngoài.</span>
+                <div className="flex justify-center">
+                    <div className="p-4 bg-white border-2 border-gray-100 rounded-xl shadow-inner">
+                        <img 
+                        src={`https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(shareData.url)}`}
+                        alt="QR Code"
+                        className="w-40 h-40"
+                        />
                     </div>
-                  )}
-                  <button 
-                    onClick={() => window.open(shareData.url, '_blank')}
-                    className="w-full text-center text-sm text-blue-600 hover:underline mt-2"
-                  >
-                    Mở thử link (Tab mới)
-                  </button>
-               </div>
+                </div>
+
+                <div className="space-y-2">
+                    <label className="text-xs font-bold text-gray-500 uppercase">Hoặc gửi đường dẫn</label>
+                    <div className="flex gap-2">
+                        <input 
+                        type="text" 
+                        readOnly 
+                        value={shareData.url}
+                        className="flex-1 bg-gray-50 border rounded-lg px-3 py-2 text-sm text-gray-600 focus:outline-none"
+                        />
+                        <button 
+                        onClick={handleCopyLink}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg flex items-center gap-2"
+                        >
+                        <Copy className="w-4 h-4" />
+                        </button>
+                    </div>
+                    {isBlobUrl && (
+                        <div className="bg-red-50 text-red-800 text-xs p-2 rounded border border-red-100 mt-2 flex items-center gap-2">
+                        <CloudLightning className="w-4 h-4 flex-shrink-0" />
+                        <span>Lưu ý: Bạn đang chạy trên môi trường Test (blob). Link này KHÔNG gửi được. Hãy dùng nút <strong>"Thi thử"</strong> bên ngoài.</span>
+                        </div>
+                    )}
+                    <button 
+                        onClick={() => window.open(shareData.url, '_blank')}
+                        className="w-full text-center text-sm text-blue-600 hover:underline mt-2"
+                    >
+                        Mở thử link (Tab mới)
+                    </button>
+                </div>
+                </div>
+                
+                <div className="p-4 bg-gray-50 text-center border-t">
+                <button 
+                    onClick={() => setShareData(null)}
+                    className="text-sm text-gray-600 hover:text-gray-900 font-medium"
+                >
+                    Đóng cửa sổ
+                </button>
+                </div>
             </div>
-            
-            <div className="p-4 bg-gray-50 text-center border-t">
-              <button 
-                onClick={() => setShareData(null)}
-                className="text-sm text-gray-600 hover:text-gray-900 font-medium"
-              >
-                Đóng cửa sổ
-              </button>
-            </div>
-          </div>
-        </div>
+         </div>
       )}
 
-      {/* View Exam Content Modal */}
+      {/* VIEW FULL EXAM MODAL (UPDATED) */}
       {viewingExam && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -582,7 +596,8 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
              </div>
              
              <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                {/* Content similar to ResultView but Read-Only */}
+                
+                {/* Part 1 */}
                 {viewingExam.part1.length > 0 && (
                    <section>
                       <h3 className="font-bold text-blue-700 border-b pb-2 mb-4">Phần 1: Trắc nghiệm</h3>
@@ -607,15 +622,68 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
                       </div>
                    </section>
                 )}
-                {/* ... (Other parts can be similarly rendered) ... */}
+
+                {/* Part 2 (Full View) */}
+                {viewingExam.part2.length > 0 && (
+                   <section>
+                      <h3 className="font-bold text-indigo-700 border-b pb-2 mb-4">Phần 2: Đúng/Sai</h3>
+                      <div className="space-y-6">
+                         {viewingExam.part2.map((q, idx) => (
+                            <div key={q.id} className="bg-gray-50 p-4 border rounded-lg">
+                               <div className="flex gap-2 mb-3">
+                                  <span className="font-bold text-indigo-600">Câu {idx + 1}:</span>
+                                  <div><MathRenderer text={q.text} /></div>
+                               </div>
+                               <div className="ml-4 space-y-2">
+                                  {q.subQuestions.map((sub, sIdx) => (
+                                     <div key={sub.id} className="flex justify-between items-center bg-white p-2 rounded border">
+                                        <span className="text-sm"><MathRenderer text={sub.text} inline /></span>
+                                        <span className={`text-xs font-bold px-2 py-1 rounded ${sub.isCorrect ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                            {sub.isCorrect ? 'ĐÚNG' : 'SAI'}
+                                        </span>
+                                     </div>
+                                  ))}
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   </section>
+                )}
+
+                {/* Part 3 (Full View) */}
+                {viewingExam.part3.length > 0 && (
+                   <section>
+                      <h3 className="font-bold text-emerald-700 border-b pb-2 mb-4">Phần 3: Trả lời ngắn</h3>
+                      <div className="space-y-4">
+                         {viewingExam.part3.map((q, idx) => (
+                            <div key={q.id} className="bg-white p-4 border rounded-lg flex flex-col md:flex-row gap-4">
+                               <div className="flex-1">
+                                  <div className="flex gap-2">
+                                     <span className="font-bold text-emerald-600">Câu {idx + 1}:</span>
+                                     <div><MathRenderer text={q.text} /></div>
+                                  </div>
+                               </div>
+                               <div className="min-w-[150px]">
+                                  <span className="text-xs text-gray-500 block">Đáp án:</span>
+                                  <div className="p-2 bg-green-50 border border-green-200 text-green-800 font-bold rounded">
+                                     {q.correctAnswer}
+                                  </div>
+                               </div>
+                            </div>
+                         ))}
+                      </div>
+                   </section>
+                )}
+
              </div>
           </div>
         </div>
       )}
 
-      {/* View Student Answer Detail Modal */}
+      {/* ... (Giữ nguyên View Result Modal) ... */}
       {viewingResult && (
          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+             {/* ... (Content View Result cũ) ... */}
             <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
                <div className="p-5 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
                   <div>
@@ -626,8 +694,10 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
                      <X className="w-6 h-6 text-gray-500" />
                   </button>
                </div>
-
+               {/* ... (Phần body đã có ở code cũ, không cần thay đổi logic xem chi tiết bài làm, chỉ giữ lại) ... */}
                <div className="flex-1 overflow-y-auto p-6 space-y-8">
+                  {/* ... Code hiển thị bài làm chi tiết của học sinh (như đã có ở v2.3) ... */}
+                  {/* ... Để tiết kiệm độ dài, tôi giữ nguyên phần logic render này vì nó đã hoạt động ... */}
                   {viewingResult.result.answers ? (
                      <>
                         {/* Part 1 */}
