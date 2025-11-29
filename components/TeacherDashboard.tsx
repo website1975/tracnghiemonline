@@ -1,15 +1,15 @@
 
-import React, { useState, useEffect } from 'react';
-import { Exam, StoredResult } from '../types';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Exam, StoredResult, StudentAccount } from '../types';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, ExternalLink, Key, Play, Lock, Edit2, Save, CheckCircle, XCircle, PenTool } from 'lucide-react';
+import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, ExternalLink, Key, Play, Lock, Edit2, Save, CheckCircle, XCircle, PenTool, History, GraduationCap } from 'lucide-react';
 
 interface TeacherDashboardProps {
   onCreateExam: () => void;
   onExit: () => void;
   onTestExam: (exam: Exam) => void;
-  onEditExam: (exam: Exam) => void; // New Prop for Editing
+  onEditExam: (exam: Exam) => void; 
 }
 
 interface ShareModalData {
@@ -20,9 +20,10 @@ interface ShareModalData {
 
 export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam, onExit, onTestExam, onEditExam }) => {
   const [exams, setExams] = useState<Exam[]>([]);
-  const [activeTab, setActiveTab] = useState<'exams' | 'results'>('exams');
+  const [activeTab, setActiveTab] = useState<'exams' | 'results' | 'students'>('exams');
   const [selectedExamId, setSelectedExamId] = useState<string | null>(null);
-  const [results, setResults] = useState<StoredResult[]>([]);
+  const [rawResults, setRawResults] = useState<StoredResult[]>([]);
+  const [students, setStudents] = useState<StudentAccount[]>([]);
   
   // Share Modal State
   const [shareData, setShareData] = useState<ShareModalData | null>(null);
@@ -48,11 +49,16 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
 
   useEffect(() => {
     refreshData();
-  }, []);
+  }, [activeTab]);
 
   const refreshData = async () => {
     const data = await db.getExams();
     setExams(data);
+    
+    if (activeTab === 'students') {
+        const studentList = await db.getAllStudents();
+        setStudents(studentList);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -60,6 +66,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
       await db.deleteExam(id);
       refreshData();
       if (selectedExamId === id) setSelectedExamId(null);
+    }
+  };
+
+  const handleDeleteStudent = async (id: string) => {
+    if (confirm('CẢNH BÁO: Xóa học sinh sẽ xóa luôn toàn bộ kết quả thi của học sinh này. Bạn có chắc không?')) {
+        const success = await db.deleteStudent(id);
+        if (success) {
+            refreshData(); // Reload student list
+        } else {
+            alert('Có lỗi khi xóa học sinh.');
+        }
     }
   };
 
@@ -82,9 +99,38 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
 
   const handleViewResults = async (examId: string) => {
     setSelectedExamId(examId);
-    setResults(await db.getResultsByExam(examId));
+    setRawResults(await db.getResultsByExam(examId));
     setActiveTab('results');
   };
+
+  // Logic gộp kết quả học sinh
+  const processedResults = useMemo(() => {
+    const groups: Record<string, StoredResult[]> = {};
+    
+    // 1. Gom nhóm theo Student ID (viết thường, bỏ khoảng trắng)
+    rawResults.forEach(r => {
+        const key = r.studentInfo.studentId.trim().toLowerCase();
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(r);
+    });
+
+    // 2. Chọn ra kết quả tốt nhất (Điểm cao nhất, nếu bằng thì lấy mới nhất)
+    return Object.values(groups).map(group => {
+        // Sắp xếp: Điểm giảm dần -> Thời gian giảm dần
+        group.sort((a, b) => {
+            if (b.result.score !== a.result.score) return b.result.score - a.result.score;
+            return b.completedAt - a.completedAt;
+        });
+        
+        const bestResult = group[0];
+        // Gắn thêm thông tin số lần thi
+        return {
+            ...bestResult,
+            attemptCount: group.length,
+            latestAt: group[0].completedAt // Thời gian của bài tốt nhất
+        };
+    });
+  }, [rawResults]);
 
   const handleViewStudentDetail = (result: StoredResult) => {
      const exam = exams.find(e => e.id === result.examId);
@@ -111,7 +157,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
     const success = await db.updateResultScore(resultId, newScore);
     if (success) {
       // Update local state to reflect change without reload
-      setResults(prev => prev.map(r => 
+      setRawResults(prev => prev.map(r => 
         r.id === resultId ? { ...r, result: { ...r.result, score: newScore } } : r
       ));
       setEditingResultId(null);
@@ -144,7 +190,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-blue-700">Trang Giáo Viên</h1>
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm animate-pulse">v3.0 (Full Edit)</span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm animate-pulse">v4.0 (Student Mgmt)</span>
           </div>
           <div className="flex gap-3">
              <button 
@@ -161,21 +207,27 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
       </header>
 
       <main className="flex-1 max-w-7xl mx-auto w-full p-6">
-        {/* ... (Giữ nguyên thanh tab) ... */}
-        <div className="flex gap-4 mb-8">
+        <div className="flex gap-4 mb-8 overflow-x-auto pb-2">
           <button
             onClick={() => setActiveTab('exams')}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 whitespace-nowrap
               ${activeTab === 'exams' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
           >
             <FileText className="w-4 h-4" /> Quản lý Đề thi
           </button>
           <button
             onClick={() => { setActiveTab('results'); setSelectedExamId(null); }}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 whitespace-nowrap
               ${activeTab === 'results' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
           >
             <Users className="w-4 h-4" /> Kết quả Học sinh
+          </button>
+          <button
+            onClick={() => setActiveTab('students')}
+            className={`px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 whitespace-nowrap
+              ${activeTab === 'students' ? 'bg-blue-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-100'}`}
+          >
+            <GraduationCap className="w-4 h-4" /> Quản lý Học sinh
           </button>
         </div>
 
@@ -266,7 +318,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         {activeTab === 'results' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-800">Kết quả làm bài</h2>
-            {/* ... (Giữ nguyên code hiển thị kết quả cũ) ... */}
             {selectedExamId ? (
               <div>
                 <button 
@@ -281,8 +332,11 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                     <h3 className="font-bold text-gray-700">
                        {exams.find(e => e.id === selectedExamId)?.title || 'Đề thi đã xóa'}
                     </h3>
+                    <div className="text-xs text-gray-500 italic">
+                        *Hệ thống tự động hiển thị điểm CAO NHẤT của mỗi học sinh
+                    </div>
                   </div>
-                  {results.length === 0 ? (
+                  {processedResults.length === 0 ? (
                     <div className="p-8 text-center text-gray-500">Chưa có kết quả nào.</div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -291,15 +345,23 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                           <tr>
                             <th className="p-4">Học sinh</th>
                             <th className="p-4">Mã SV</th>
-                            <th className="p-4">Điểm số</th>
+                            <th className="p-4">Điểm số (Cao nhất)</th>
                             <th className="p-4">Chi tiết</th>
-                            <th className="p-4">Ngày nộp</th>
+                            <th className="p-4">Lần thi cuối</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
-                          {results.map((r, idx) => (
+                          {processedResults.map((r, idx) => (
                             <tr key={idx} className="hover:bg-gray-50">
-                              <td className="p-4 font-medium text-gray-900">{r.studentInfo.name}</td>
+                              <td className="p-4 font-medium text-gray-900">
+                                {r.studentInfo.name}
+                                {/* Hiển thị số lần thi nếu > 1 */}
+                                {(r as any).attemptCount > 1 && (
+                                    <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full font-bold flex inline-flex items-center gap-1">
+                                        <History className="w-3 h-3" /> Thi {(r as any).attemptCount} lần
+                                    </span>
+                                )}
+                              </td>
                               <td className="p-4 text-gray-500">{r.studentInfo.studentId}</td>
                               <td className="p-4">
                                 {editingResultId === r.id ? (
@@ -386,9 +448,55 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
             )}
           </div>
         )}
+
+        {/* --- STUDENT MANAGEMENT TAB (NEW) --- */}
+        {activeTab === 'students' && (
+            <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-gray-800">Danh sách Học sinh đã đăng ký</h2>
+                <div className="bg-white rounded-xl border overflow-hidden">
+                    {students.length === 0 ? (
+                        <div className="p-8 text-center text-gray-500">Chưa có học sinh nào đăng ký.</div>
+                    ) : (
+                        <div className="overflow-x-auto">
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-50 text-gray-500 font-medium">
+                                    <tr>
+                                        <th className="p-4">Họ và tên</th>
+                                        <th className="p-4">Tên đăng nhập</th>
+                                        <th className="p-4">Lớp</th>
+                                        <th className="p-4">Mật khẩu</th>
+                                        <th className="p-4">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {students.map((s) => (
+                                        <tr key={s.id} className="hover:bg-gray-50">
+                                            <td className="p-4 font-bold text-gray-900">{s.full_name}</td>
+                                            <td className="p-4 font-mono text-blue-600">{s.username}</td>
+                                            <td className="p-4 text-gray-600">{s.class_name || '-'}</td>
+                                            <td className="p-4 text-gray-400 font-mono">{s.password}</td>
+                                            <td className="p-4">
+                                                <button 
+                                                    onClick={() => handleDeleteStudent(s.id)}
+                                                    className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-red-100 flex items-center gap-1 text-xs font-bold"
+                                                >
+                                                    <Trash2 className="w-4 h-4" /> Xóa
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
+
       </main>
 
-      {/* ... (Giữ nguyên Modal Deploy Guide & Share Modal) ... */}
+      {/* ... (Giữ nguyên Modal Deploy Guide, Share Modal, View Exam, View Result) ... */}
+      {/* (Phần code modal bên dưới giữ nguyên như cũ, chỉ render lại) */}
       {showDeployGuide && (
          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
             {/* ... Content of Deploy Guide ... */}
@@ -490,20 +598,30 @@ create table if not exists results (
   student_id text,
   score numeric, 
   details jsonb,
-  answers jsonb, -- MỚI: Thêm cột này để lưu chi tiết bài làm
+  answers jsonb, 
   time_spent int, 
+  created_at timestamptz default now(),
+  student_account_id uuid REFERENCES students(id) -- Mới
+);
+
+-- 3. Tạo bảng Students (MỚI)
+create table if not exists students (
+  id uuid default gen_random_uuid() primary key,
+  full_name text not null,
+  class_name text,
+  username text not null unique,
+  password text not null, 
   created_at timestamptz default now()
 );
 
--- 3. Mở quyền truy cập
+-- 4. Mở quyền truy cập
 alter table exams enable row level security;
 alter table results enable row level security;
-create policy "Public Exams Access" on exams for all using (true);
-create policy "Public Results Access" on results for all using (true);
-
--- *LỆNH SỬA LỖI CHO BẢNG CŨ (Nếu đã tạo bảng results trước đó)
-ALTER TABLE results ADD COLUMN IF NOT EXISTS answers jsonb;
-ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
+alter table students enable row level security;
+create policy "Public Access" on exams for all using (true);
+create policy "Public Access" on results for all using (true);
+create policy "Public Access" on students for all using (true);
+`}</pre>
                    </div>
                 </div>
              </div>
@@ -581,7 +699,7 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
          </div>
       )}
 
-      {/* VIEW FULL EXAM MODAL (UPDATED) */}
+      {/* VIEW FULL EXAM MODAL */}
       {viewingExam && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -596,7 +714,7 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
              </div>
              
              <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                
+                {/* ... Content of Exam (Giữ nguyên) ... */}
                 {/* Part 1 */}
                 {viewingExam.part1.length > 0 && (
                    <section>
@@ -622,9 +740,8 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
                       </div>
                    </section>
                 )}
-
-                {/* Part 2 (Full View) */}
-                {viewingExam.part2.length > 0 && (
+                 {/* ... Part 2 & 3 (Giữ nguyên như v3.1) ... */}
+                 {viewingExam.part2.length > 0 && (
                    <section>
                       <h3 className="font-bold text-indigo-700 border-b pb-2 mb-4">Phần 2: Đúng/Sai</h3>
                       <div className="space-y-6">
@@ -649,9 +766,7 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
                       </div>
                    </section>
                 )}
-
-                {/* Part 3 (Full View) */}
-                {viewingExam.part3.length > 0 && (
+                 {viewingExam.part3.length > 0 && (
                    <section>
                       <h3 className="font-bold text-emerald-700 border-b pb-2 mb-4">Phần 3: Trả lời ngắn</h3>
                       <div className="space-y-4">
@@ -674,17 +789,16 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
                       </div>
                    </section>
                 )}
-
              </div>
           </div>
         </div>
       )}
 
-      {/* ... (Giữ nguyên View Result Modal) ... */}
+      {/* VIEW RESULT MODAL (Giữ nguyên) */}
       {viewingResult && (
          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-             {/* ... (Content View Result cũ) ... */}
-            <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
+             {/* ... Render chi tiết bài làm (Giữ nguyên từ v3.1) ... */}
+              <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
                <div className="p-5 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
                   <div>
                      <h2 className="text-xl font-bold text-gray-900">Chi tiết bài làm: {viewingResult.result.studentInfo.name}</h2>
@@ -694,10 +808,8 @@ ALTER TABLE results DROP CONSTRAINT IF EXISTS results_exam_id_fkey;`}</pre>
                      <X className="w-6 h-6 text-gray-500" />
                   </button>
                </div>
-               {/* ... (Phần body đã có ở code cũ, không cần thay đổi logic xem chi tiết bài làm, chỉ giữ lại) ... */}
                <div className="flex-1 overflow-y-auto p-6 space-y-8">
-                  {/* ... Code hiển thị bài làm chi tiết của học sinh (như đã có ở v2.3) ... */}
-                  {/* ... Để tiết kiệm độ dài, tôi giữ nguyên phần logic render này vì nó đã hoạt động ... */}
+                  {/* ... (Code hiển thị bài làm chi tiết của học sinh - Giữ nguyên) ... */}
                   {viewingResult.result.answers ? (
                      <>
                         {/* Part 1 */}
