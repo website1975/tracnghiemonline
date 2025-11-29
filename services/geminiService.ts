@@ -1,3 +1,4 @@
+
 import { GoogleGenAI, Type, Schema } from "@google/genai";
 import { Exam } from "../types";
 
@@ -98,9 +99,13 @@ export const parseExamFromContent = async (
     
     TASK: Analyze the provided content (text or image) and extract the exam into JSON.
     
-    IMPORTANT - MATH & FORMATTING:
+    IMPORTANT - MATH & LaTeX:
     - If the content contains Math formulas, preserve them in LaTeX format wrapped in single dollar signs. Example: $x^2 + 2x + 1 = 0$.
-    - Do NOT expand or simplify LaTeX formulas, keep them raw for rendering.
+    - **CRITICAL FOR JSON:** When outputting LaTeX backslashes inside JSON strings, you MUST double-escape them. 
+      - Incorrect: "$\frac{1}{2}$" (Invalid JSON string)
+      - Correct: "$\\frac{1}{2}$" (Valid JSON string that parses to \frac)
+      - Incorrect: "Delta = b^2 - 4ac"
+      - Correct: "$\\Delta = b^2 - 4ac$"
     
     IMPORTANT - HOW TO FIND CORRECT ANSWERS:
     1. **Priority 1 (Answer Key/Table):** Look for an Answer Key at the end (e.g., "1.A, 2.B" or a grid).
@@ -116,10 +121,6 @@ export const parseExamFromContent = async (
     2. Part 2 (Phần II): True/False group questions. Each has 4 sub-statements (a, b, c, d).
     3. Part 3 (Phần III): Short answer questions.
 
-    INSTRUCTIONS:
-    - Input text might be messy from PDF extraction. Use context to separate questions.
-    - Provide a brief 'explanation' in Vietnamese for every question.
-    
     Input Content to Process:
     ${content}
     `
@@ -131,7 +132,7 @@ export const parseExamFromContent = async (
     config: {
       responseMimeType: "application/json",
       responseSchema: examSchema,
-      systemInstruction: "You are a precise data extractor helper for teachers. Prioritize provided answer keys. Output Math in LaTeX."
+      systemInstruction: "You are a precise data extractor. Output valid JSON. Double-escape LaTeX backslashes."
     }
   });
 
