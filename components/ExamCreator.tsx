@@ -427,7 +427,7 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                  <p className="text-xs text-gray-600">
                    <strong>Cách 1:</strong> Bảng đáp án cuối file (1.A, 2.B...).<br/>
                    <strong>Cách 2:</strong> Đánh dấu đỏ/gạch chân trực tiếp.<br/>
-                   <strong>Cách 3:</strong> Không có đáp án -> AI sẽ tự giải.
+                   <strong>Cách 3:</strong> Không có đáp án &rarr; AI sẽ tự giải.
                  </p>
              </div>
           </div>
