@@ -208,19 +208,20 @@ export const db = {
     return data as StudentAccount;
   },
 
-  // 10. Lấy lịch sử thi của học sinh
-  getStudentHistory: async (accountId: string): Promise<StoredResult[]> => {
+  // 10. Lấy lịch sử thi của học sinh (Thông minh: Tìm theo AccountID hoặc Tên đăng nhập)
+  getStudentHistory: async (accountId: string, studentId: string): Promise<StoredResult[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
 
-    // Join với bảng exams để lấy tên đề
+    // Tìm các bài thi có student_account_id khớp, HOẶC student_id khớp với username
+    // Điều này giúp hiển thị lại các bài thi cũ lúc chưa có tài khoản
     const { data, error } = await supabase
       .from('results')
       .select(`
         *,
         exams ( title, subject )
       `)
-      .eq('student_account_id', accountId)
+      .or(`student_account_id.eq.${accountId},student_id.eq.${studentId}`)
       .order('created_at', { ascending: false });
 
     if (error || !data) return [];
@@ -261,11 +262,6 @@ export const db = {
   deleteStudent: async (studentId: string): Promise<boolean> => {
     const supabase = getSupabase();
     if (!supabase) return false;
-
-    // Do có foreign key, nên khi xóa học sinh, kết quả thi liên quan cũng sẽ mất (nếu cấu hình on delete cascade)
-    // Hoặc ta phải xóa kết quả trước.
-    // Ở lệnh SQL tạo bảng, ta chưa set ON DELETE CASCADE cho student_account_id, nên ta cần xóa kết quả trước hoặc dùng force.
-    // Đơn giản nhất là xóa kết quả liên quan trước.
     
     await supabase.from('results').delete().eq('student_account_id', studentId);
     const { error } = await supabase.from('students').delete().eq('id', studentId);
