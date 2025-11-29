@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect } from 'react';
 import { Exam, PartType } from '../types';
 import { parseExamFromContent } from '../services/geminiService';
 import { MathRenderer } from './MathRenderer';
-import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, AlertCircle, Edit, Save, Trash, Plus } from 'lucide-react';
+import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, Save, Trash, Plus } from 'lucide-react';
 
 interface ExamCreatorProps {
   onExamCreated: (exam: Exam) => Promise<void> | void;
@@ -166,9 +165,7 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
              <button 
                 onClick={() => {
                   if (initialExam) {
-                    // Nếu đang sửa, nút Hủy sẽ trigger save rỗng hoặc logic ngoài App để thoát
-                     // Ở đây ta gọi save final để thoát mà không lưu? Không, App xử lý việc thoát
-                     // Thực tế nút Back ở App.tsx xử lý việc này.
+                     // Do nothing, App handles back navigation
                   } else {
                     setIsReviewMode(false);
                   }
@@ -255,13 +252,12 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                     <div className="flex flex-col gap-1">
                        <label className="text-xs text-gray-500 font-medium uppercase">Nội dung câu hỏi (Hỗ trợ LaTeX: $...$)</label>
                        <textarea 
-                          className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm"
+                          className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm leading-relaxed"
                           rows={3}
                           value={q.text}
                           onChange={(e) => updateQuestion('part1', idx, 'text', e.target.value)}
                        />
                        <div className="p-2 bg-gray-50 rounded text-sm text-gray-700">
-                          <span className="text-xs text-gray-400 block mb-1">Xem trước:</span>
                           <MathRenderer text={q.text} />
                        </div>
                     </div>
@@ -287,6 +283,18 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                              </div>
                           </div>
                        ))}
+                    </div>
+
+                    {/* Lời giải / Giải thích */}
+                    <div className="mt-2 pt-2 border-t border-gray-100">
+                       <label className="block text-xs font-bold text-yellow-700 mb-1">Lời giải / Giải thích (AI):</label>
+                       <textarea 
+                          className="w-full p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-gray-700 font-mono"
+                          rows={2}
+                          value={q.explanation || ''}
+                          onChange={(e) => updateQuestion('part1', idx, 'explanation', e.target.value)}
+                          placeholder="Nhập lời giải..."
+                       />
                     </div>
                  </div>
               </div>
@@ -331,6 +339,18 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                        </div>
                     ))}
                  </div>
+
+                 {/* Lời giải / Giải thích */}
+                 <div className="mt-4 pt-2 border-t border-gray-100">
+                    <label className="block text-xs font-bold text-yellow-700 mb-1">Lời giải / Giải thích (AI):</label>
+                    <textarea 
+                       className="w-full p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-gray-700 font-mono"
+                       rows={2}
+                       value={q.explanation || ''}
+                       onChange={(e) => updateQuestion('part2', idx, 'explanation', e.target.value)}
+                       placeholder="Nhập lời giải..."
+                    />
+                 </div>
               </div>
            ))}
 
@@ -361,6 +381,18 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                        />
                     </div>
                  </div>
+
+                 {/* Lời giải / Giải thích */}
+                 <div className="mt-4 pt-2 border-t border-gray-100">
+                    <label className="block text-xs font-bold text-yellow-700 mb-1">Lời giải / Giải thích (AI):</label>
+                    <textarea 
+                       className="w-full p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-gray-700 font-mono"
+                       rows={2}
+                       value={q.explanation || ''}
+                       onChange={(e) => updateQuestion('part3', idx, 'explanation', e.target.value)}
+                       placeholder="Nhập lời giải..."
+                    />
+                 </div>
               </div>
            ))}
         </div>
@@ -371,14 +403,12 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
   // --- Upload UI ---
   return (
     <div className="max-w-4xl mx-auto p-6 space-y-8">
-      {/* ... (Giữ nguyên phần upload UI cũ) ... */}
       <div className="text-center space-y-2">
         <h2 className="text-3xl font-bold text-gray-900">Tạo Đề Thi Mới</h2>
-        {/* ... */}
+        <p className="text-gray-500">Tải lên file PDF hoặc ảnh chụp đề thi để AI tự động trích xuất</p>
       </div>
-      {/* ... Phần code Upload cũ giữ nguyên, không cần thay đổi logic upload ... */}
+
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
-        {/* ... Guide section ... */}
          <button 
           onClick={() => setShowGuide(!showGuide)}
           className="flex items-center gap-2 text-blue-800 font-bold w-full text-left"
@@ -387,13 +417,19 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
           Quy ước định dạng file để AI nhận diện chuẩn 100%
         </button>
         {showGuide && (
-          // ... Guide content ...
           <div className="mt-4 grid md:grid-cols-2 gap-4 animate-in fade-in slide-in-from-top-2">
             <div className="bg-white p-3 rounded border shadow-sm space-y-2">
                  <h4 className="font-bold text-gray-800 text-sm border-b pb-1">Công thức Toán</h4>
                  <p className="text-xs text-gray-600">AI tự động nhận diện. Tốt nhất nên dùng MathType hoặc Equation trong Word rồi xuất PDF.</p>
              </div>
-             {/* ... */}
+             <div className="bg-white p-3 rounded border shadow-sm space-y-2">
+                 <h4 className="font-bold text-gray-800 text-sm border-b pb-1">Đáp án (Tùy chọn)</h4>
+                 <p className="text-xs text-gray-600">
+                   <strong>Cách 1:</strong> Bảng đáp án cuối file (1.A, 2.B...).<br/>
+                   <strong>Cách 2:</strong> Đánh dấu đỏ/gạch chân trực tiếp.<br/>
+                   <strong>Cách 3:</strong> Không có đáp án -> AI sẽ tự giải.
+                 </p>
+             </div>
           </div>
         )}
       </div>
@@ -401,7 +437,6 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left Column: Text Area */}
         <div className="space-y-4">
-           {/* ... Text Area & PDF Button ... */}
            <div className="relative">
              <textarea
                 className="w-full h-64 p-4 border rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none text-sm font-mono bg-gray-50"
@@ -410,7 +445,14 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                 onChange={(e) => setInputText(e.target.value)}
                 readOnly={loadingStep === 'reading-pdf'}
               />
-              {/* ... */}
+              {loadingStep === 'reading-pdf' && (
+                <div className="absolute inset-0 bg-white/80 flex items-center justify-center rounded-xl">
+                  <div className="flex flex-col items-center gap-2">
+                    <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+                    <span className="text-sm font-medium text-blue-600">Đang đọc file PDF...</span>
+                  </div>
+                </div>
+              )}
           </div>
           <div className="relative">
              <input
@@ -429,11 +471,10 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
 
         {/* Right Column: Image Upload */}
         <div className="space-y-4">
-          {/* ... Image Upload logic ... */}
           <label className="block text-sm font-medium text-gray-700">Hoặc tải lên ảnh chụp (JPG/PNG)</label>
           <div className={`border-2 border-dashed rounded-xl h-64 flex flex-col items-center justify-center transition-colors relative overflow-hidden
             ${selectedImage ? 'border-blue-300 bg-blue-50' : 'border-gray-300 bg-gray-50 hover:bg-gray-100'}`}>
-            {/* ... */}
+            
             {selectedImage ? (
               <img 
                 src={`data:image/jpeg;base64,${selectedImage}`} 
@@ -453,11 +494,18 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
               onChange={handleImageUpload}
               disabled={isLoading}
             />
+            {selectedImage && (
+              <button 
+                onClick={(e) => { e.preventDefault(); setSelectedImage(null); }}
+                className="absolute top-2 right-2 p-1 bg-white rounded-full shadow-md hover:bg-red-50 text-red-500 z-20"
+              >
+                <Trash className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
       
-      {/* ... Error & Buttons ... */}
       <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4 border-t">
         <button
           onClick={handleParse}
