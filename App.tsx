@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { ExamCreator } from './components/ExamCreator';
 import { ExamTaker } from './components/ExamTaker';
@@ -22,6 +23,9 @@ function App() {
   const [studentInfo, setStudentInfo] = useState<StudentInfo>({ name: '', classId: '', studentId: '' });
   const [studentAnswers, setStudentAnswers] = useState<StudentAnswers | null>(null);
   const [isLoadingExam, setIsLoadingExam] = useState(false);
+
+  // Edit State
+  const [examToEdit, setExamToEdit] = useState<Exam | null>(null);
 
   // Teacher Login State
   const [showTeacherLogin, setShowTeacherLogin] = useState(false);
@@ -55,6 +59,7 @@ function App() {
 
   const handleExamCreated = async (exam: Exam) => {
     await db.saveExam(exam);
+    setExamToEdit(null); // Clear edit state
     setAppState(AppState.TEACHER_DASHBOARD);
   };
 
@@ -78,6 +83,7 @@ function App() {
     setStudentAnswers(null);
     setStudentInfo({ name: '', classId: '', studentId: '' });
     setCurrentExam(null);
+    setExamToEdit(null);
     // Xóa query params trên URL nếu có
     window.history.replaceState({}, '', window.location.pathname);
     setAppState(AppState.HOME);
@@ -259,18 +265,28 @@ function App() {
              setCurrentExam(exam);
              setAppState(AppState.STUDENT_LOGIN);
           }}
+          onEditExam={(exam) => {
+            setExamToEdit(exam);
+            setAppState(AppState.TEACHER_CREATE);
+          }}
         />
       )}
 
       {appState === AppState.TEACHER_CREATE && (
         <div className="min-h-screen bg-gray-50">
           <header className="bg-white border-b px-6 py-4 flex items-center gap-4">
-            <button onClick={() => setAppState(AppState.TEACHER_DASHBOARD)} className="text-gray-500 hover:text-black font-medium">
+            <button onClick={() => {
+              setExamToEdit(null);
+              setAppState(AppState.TEACHER_DASHBOARD);
+            }} className="text-gray-500 hover:text-black font-medium">
               &larr; Quay lại
             </button>
-            <h1 className="font-bold text-lg">Tạo đề thi mới</h1>
+            <h1 className="font-bold text-lg">{examToEdit ? 'Chỉnh sửa đề thi' : 'Tạo đề thi mới'}</h1>
           </header>
-          <ExamCreator onExamCreated={handleExamCreated} />
+          <ExamCreator 
+            onExamCreated={handleExamCreated} 
+            initialExam={examToEdit} // Pass exam to edit
+          />
         </div>
       )}
 
