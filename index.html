@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Hệ Thống Kiểm Tra Online - Chương Trình 2018</title>
+    <title>Hệ Thống Kiểm Tra Online - Chương Trình 2025</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     
@@ -22,26 +22,24 @@
     <style>
       body { 
         font-family: 'Inter', sans-serif; 
-        /* Fix lỗi chữ bị rời rạc: Giảm khoảng cách ký tự mặc định */
-        letter-spacing: -0.01em; 
         color: #1e293b;
+        letter-spacing: normal; /* Reset tracking to normal to prevent spaced out text */
       }
       ::-webkit-scrollbar { width: 8px; }
       ::-webkit-scrollbar-track { background: #f1f1f1; }
       ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
       ::-webkit-scrollbar-thumb:hover { background: #555; }
       
-      /* Cấu hình KaTeX để hòa dòng tốt hơn với văn bản */
+      /* Cấu hình KaTeX */
       .katex { 
         font-size: 1.05em !important; 
         line-height: 1.2 !important;
       }
       
-      /* Class bao bọc công thức để tránh phá vỡ dòng chảy văn bản */
+      /* Math content styling - Removed display:inline to allow natural flow */
       .math-content {
-        display: inline;
         white-space: normal;
-        word-break: break-word;
+        word-wrap: break-word;
       }
       
       /* Fix cho các thẻ p chứa math */
@@ -50,7 +48,7 @@
         line-height: 1.6;
       }
     </style>
-  <script type="importmap">
+<script type="importmap">
 {
   "imports": {
     "react": "https://aistudiocdn.com/react@^19.2.0",
