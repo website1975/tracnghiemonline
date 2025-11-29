@@ -21,10 +21,10 @@ const examSchema: Schema = {
             items: { type: Type.STRING },
             description: "Array of 4 options strings (A, B, C, D included in text). Keep math in LaTeX."
           },
-          correctOption: { type: Type.NUMBER, description: "Index of correct option (0-3)" },
-          explanation: { type: Type.STRING, description: "Explanation for the answer" }
+          correctOption: { type: Type.NUMBER, description: "Index of correct option (0-3). IF NO KEY FOUND, YOU MUST SOLVE IT." },
+          explanation: { type: Type.STRING, description: "Detailed step-by-step solution. MANDATORY." }
         },
-        required: ["id", "text", "options", "correctOption"]
+        required: ["id", "text", "options", "correctOption", "explanation"]
       }
     },
     part2: {
@@ -42,14 +42,14 @@ const examSchema: Schema = {
               properties: {
                 id: { type: Type.STRING },
                 text: { type: Type.STRING, description: "Sub-statement content. Keep math in LaTeX." },
-                isCorrect: { type: Type.BOOLEAN, description: "True if statement is correct, False otherwise" }
+                isCorrect: { type: Type.BOOLEAN, description: "True/False. IF NO KEY FOUND, YOU MUST SOLVE IT." }
               },
               required: ["id", "text", "isCorrect"]
             }
           },
-          explanation: { type: Type.STRING }
+          explanation: { type: Type.STRING, description: "Detailed reasoning for the True/False decisions. MANDATORY." }
         },
-        required: ["id", "text", "subQuestions"]
+        required: ["id", "text", "subQuestions", "explanation"]
       }
     },
     part3: {
@@ -60,10 +60,10 @@ const examSchema: Schema = {
         properties: {
           id: { type: Type.STRING },
           text: { type: Type.STRING, description: "Question text. Keep math in LaTeX." },
-          correctAnswer: { type: Type.STRING, description: "The exact short answer result" },
-          explanation: { type: Type.STRING }
+          correctAnswer: { type: Type.STRING, description: "The exact short answer result. IF NO KEY FOUND, YOU MUST SOLVE IT." },
+          explanation: { type: Type.STRING, description: "Detailed calculation steps. MANDATORY." }
         },
-        required: ["id", "text", "correctAnswer"]
+        required: ["id", "text", "correctAnswer", "explanation"]
       }
     }
   },
@@ -95,31 +95,28 @@ export const parseExamFromContent = async (
   }
 
   parts.push({
-    text: `You are an expert educational AI assistant for the Vietnamese High School Graduation Exam (2025/2018 Program).
+    text: `You are an expert Physics/Math/Chemistry Professor and Exam Creator for the Vietnamese 2025 High School Program.
     
-    TASK: Analyze the provided content (text or image) and extract the exam into JSON.
+    TASK: Analyze the provided content (text or image), EXTRACT the questions, and SOLVE them to provide correct answers and explanations.
     
+    CRITICAL INSTRUCTION ON ANSWERS:
+    1. **Search for Answer Key:** Check if the document contains a table of answers (e.g., 1.A, 2.B) or marked answers (bold/red/underlined).
+    2. **IF NO KEY FOUND (Important):** You MUST SOLVE every single question yourself to determine:
+       - 'correctOption' (Part 1)
+       - 'isCorrect' (Part 2)
+       - 'correctAnswer' (Part 3)
+       DO NOT default to 0 or False. Use your knowledge to find the truth.
+    3. **Generate Explanation:** You MUST write a "Lời giải" (explanation) in Vietnamese for every question, explaining why the answer is correct.
+
     IMPORTANT - MATH & LaTeX:
-    - If the content contains Math formulas, preserve them in LaTeX format wrapped in single dollar signs. Example: $x^2 + 2x + 1 = 0$.
-    - **CRITICAL FOR JSON:** When outputting LaTeX backslashes inside JSON strings, you MUST double-escape them. 
-      - Incorrect: "$\frac{1}{2}$" (Invalid JSON string)
-      - Correct: "$\\frac{1}{2}$" (Valid JSON string that parses to \frac)
-      - Incorrect: "Delta = b^2 - 4ac"
-      - Correct: "$\\Delta = b^2 - 4ac$"
-    
-    IMPORTANT - HOW TO FIND CORRECT ANSWERS:
-    1. **Priority 1 (Answer Key/Table):** Look for an Answer Key at the end (e.g., "1.A, 2.B" or a grid).
-    2. **Priority 2 (Visual Markers):** 
-       - Part 1: "*A", "A (x)", or underlined/bold options.
-       - Part 2 (True/False): Look for "(Đ)"/ "(D)" for True, "(S)" for False at the end of statements. Or a table ticking D/S.
-       - Part 3 (Short Answer): Look for "Đáp án: [Result]" or just the result written next to the question.
-    3. **Priority 3 (AI Solver):** ONLY if NO key/markers are found, SOLVE the questions yourself.
+    - Preserve Math formulas in LaTeX format wrapped in single dollar signs $. e.g., $x^2$.
+    - **JSON ESCAPING:** You must double-escape backslashes in the JSON output. Example: Use "$\\frac{1}{2}$" instead of "$\frac{1}{2}$".
 
     STRUCTURE:
     The exam MUST have 3 parts:
-    1. Part 1 (Phần I): Multiple choice (4 options: A, B, C, D).
-    2. Part 2 (Phần II): True/False group questions. Each has 4 sub-statements (a, b, c, d).
-    3. Part 3 (Phần III): Short answer questions.
+    1. Part 1 (Phần I): Multiple choice.
+    2. Part 2 (Phần II): True/False.
+    3. Part 3 (Phần III): Short answer.
 
     Input Content to Process:
     ${content}
@@ -132,7 +129,7 @@ export const parseExamFromContent = async (
     config: {
       responseMimeType: "application/json",
       responseSchema: examSchema,
-      systemInstruction: "You are a precise data extractor. Output valid JSON. Double-escape LaTeX backslashes."
+      systemInstruction: "You are a precise data extractor and problem solver. Output valid JSON. Always provide correct answers and explanations."
     }
   });
 
