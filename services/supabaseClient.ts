@@ -1,11 +1,10 @@
+
 import { createClient } from '@supabase/supabase-js';
-import { Exam, StoredResult } from '../types';
+import { Exam, StoredResult, StudentAccount, StudentInfo } from '../types';
 import { storage } from '../utils/storage';
 
 // Lấy key từ biến môi trường hoặc localStorage
 const getSupabaseConfig = () => {
-  // Sử dụng process.env đã được Vite define lại khi build
-  // Ưu tiên lấy từ biến môi trường (khi deploy Vercel), sau đó mới đến LocalStorage
   const url = process.env.VITE_SUPABASE_URL || localStorage.getItem('SB_URL');
   const key = process.env.VITE_SUPABASE_KEY || localStorage.getItem('SB_KEY');
   return { url, key };
@@ -29,7 +28,7 @@ export const getSupabase = () => {
 // --- API Service Wrapper ---
 
 export const db = {
-  // 1. Lưu đề thi (Hỗ trợ Sửa: Dùng upsert thay vì insert)
+  // 1. Lưu đề thi
   saveExam: async (exam: Exam): Promise<boolean> => {
     const supabase = getSupabase();
     if (supabase) {
@@ -103,6 +102,7 @@ export const db = {
         exam_id: data.examId,
         student_name: data.studentInfo.name,
         student_id: data.studentInfo.studentId,
+        student_account_id: data.studentInfo.accountId, // Liên kết tài khoản
         score: data.result.score,
         details: data.result.details,
         time_spent: data.timeSpent,
@@ -119,7 +119,7 @@ export const db = {
     }
   },
 
-  // 6. Lấy kết quả của 1 đề
+  // 6. Lấy kết quả của 1 đề (Cho giáo viên)
   getResultsByExam: async (examId: string): Promise<StoredResult[]> => {
     const supabase = getSupabase();
     if (supabase) {
@@ -134,7 +134,12 @@ export const db = {
       return data.map((row: any) => ({
         id: row.id,
         examId: row.exam_id,
-        studentInfo: { name: row.student_name, studentId: row.student_id, classId: '' },
+        studentInfo: { 
+          name: row.student_name, 
+          studentId: row.student_id, 
+          classId: '',
+          accountId: row.student_account_id 
+        },
         result: { score: row.score, details: row.details, maxScore: 10 },
         completedAt: new Date(row.created_at).getTime(),
         timeSpent: row.time_spent,
@@ -163,5 +168,108 @@ export const db = {
       storage.updateResultScore(resultId, newScore);
       return true;
     }
+  },
+
+  // --- STUDENT AUTH & HISTORY ---
+
+  // 8. Đăng ký học sinh
+  registerStudent: async (info: { fullName: string, className: string, username: string, password: string }): Promise<{ success: boolean, message?: string }> => {
+    const supabase = getSupabase();
+    if (!supabase) return { success: false, message: "Chưa kết nối Database" };
+
+    // Check user exist
+    const { data: exist } = await supabase.from('students').select('id').eq('username', info.username).single();
+    if (exist) return { success: false, message: "Tên đăng nhập đã tồn tại" };
+
+    const { error } = await supabase.from('students').insert({
+      full_name: info.fullName,
+      class_name: info.className,
+      username: info.username,
+      password: info.password
+    });
+
+    if (error) return { success: false, message: error.message };
+    return { success: true };
+  },
+
+  // 9. Đăng nhập học sinh
+  loginStudent: async (username: string, password: string): Promise<StudentAccount | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .eq('username', username)
+      .eq('password', password) // Lưu ý: Password plain text theo yêu cầu đơn giản
+      .single();
+
+    if (error || !data) return null;
+    return data as StudentAccount;
+  },
+
+  // 10. Lấy lịch sử thi của học sinh
+  getStudentHistory: async (accountId: string): Promise<StoredResult[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    // Join với bảng exams để lấy tên đề
+    const { data, error } = await supabase
+      .from('results')
+      .select(`
+        *,
+        exams ( title, subject )
+      `)
+      .eq('student_account_id', accountId)
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+
+    return data.map((row: any) => ({
+      id: row.id,
+      examId: row.exam_id,
+      studentInfo: { 
+        name: row.student_name, 
+        studentId: row.student_id, 
+        classId: '', 
+        accountId: row.student_account_id 
+      },
+      result: { score: row.score, details: row.details, maxScore: 10 },
+      completedAt: new Date(row.created_at).getTime(),
+      timeSpent: row.time_spent,
+      answers: row.answers,
+      examTitle: row.exams?.title || "Đề thi không xác định",
+      examSubject: row.exams?.subject || ""
+    }));
+  },
+
+  // 11. (MỚI) Lấy danh sách tất cả học sinh (Cho Giáo viên)
+  getAllStudents: async (): Promise<StudentAccount[]> => {
+    const supabase = getSupabase();
+    if (!supabase) return [];
+
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error || !data) return [];
+    return data as StudentAccount[];
+  },
+
+  // 12. (MỚI) Xóa học sinh
+  deleteStudent: async (studentId: string): Promise<boolean> => {
+    const supabase = getSupabase();
+    if (!supabase) return false;
+
+    // Do có foreign key, nên khi xóa học sinh, kết quả thi liên quan cũng sẽ mất (nếu cấu hình on delete cascade)
+    // Hoặc ta phải xóa kết quả trước.
+    // Ở lệnh SQL tạo bảng, ta chưa set ON DELETE CASCADE cho student_account_id, nên ta cần xóa kết quả trước hoặc dùng force.
+    // Đơn giản nhất là xóa kết quả liên quan trước.
+    
+    await supabase.from('results').delete().eq('student_account_id', studentId);
+    const { error } = await supabase.from('students').delete().eq('id', studentId);
+    
+    return !error;
   }
 };
