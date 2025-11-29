@@ -208,25 +208,39 @@ export const db = {
     return data as StudentAccount;
   },
 
-  // 10. Lấy lịch sử thi của học sinh (Thông minh: Tìm theo AccountID hoặc Tên đăng nhập)
+  // 10. Lấy lịch sử thi của học sinh (FIXED: MANUAL JOIN)
   getStudentHistory: async (accountId: string, studentId: string): Promise<StoredResult[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
 
-    // Tìm các bài thi có student_account_id khớp, HOẶC student_id khớp với username
-    // Điều này giúp hiển thị lại các bài thi cũ lúc chưa có tài khoản
-    const { data, error } = await supabase
+    // BƯỚC 1: Lấy danh sách kết quả (KHÔNG join bảng exams để tránh lỗi Foreign Key)
+    const { data: results, error } = await supabase
       .from('results')
-      .select(`
-        *,
-        exams ( title, subject )
-      `)
+      .select('*')
       .or(`student_account_id.eq.${accountId},student_id.eq.${studentId}`)
       .order('created_at', { ascending: false });
 
-    if (error || !data) return [];
+    if (error || !results || results.length === 0) return [];
 
-    return data.map((row: any) => ({
+    // BƯỚC 2: Lấy thông tin các đề thi tương ứng thủ công
+    const examIds = [...new Set(results.map((r: any) => r.exam_id))];
+    let examMap: Record<string, any> = {};
+
+    if (examIds.length > 0) {
+      const { data: examsData } = await supabase
+        .from('exams')
+        .select('id, title, subject')
+        .in('id', examIds);
+        
+      if (examsData) {
+        examsData.forEach((e: any) => {
+          examMap[e.id] = e;
+        });
+      }
+    }
+
+    // BƯỚC 3: Ghép dữ liệu
+    return results.map((row: any) => ({
       id: row.id,
       examId: row.exam_id,
       studentInfo: { 
@@ -239,8 +253,9 @@ export const db = {
       completedAt: new Date(row.created_at).getTime(),
       timeSpent: row.time_spent,
       answers: row.answers,
-      examTitle: row.exams?.title || "Đề thi không xác định",
-      examSubject: row.exams?.subject || ""
+      // Map thủ công title và subject
+      examTitle: examMap[row.exam_id]?.title || "Đề thi đã xóa hoặc không tồn tại",
+      examSubject: examMap[row.exam_id]?.subject || ""
     }));
   },
 
