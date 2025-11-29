@@ -21,8 +21,8 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ account, onL
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
-      // 1. Get History
-      const hist = await db.getStudentHistory(account.id);
+      // 1. Get History (truyền thêm username để tìm lại bài thi cũ trùng tên)
+      const hist = await db.getStudentHistory(account.id, account.username);
       setHistory(hist);
       
       // 2. Get Available Exams (Last 5)
@@ -32,7 +32,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({ account, onL
       setLoading(false);
     };
     fetchData();
-  }, [account.id]);
+  }, [account.id, account.username]);
 
   return (
     <div className="min-h-screen bg-gray-50">
