@@ -1,10 +1,9 @@
-
 import React, { useEffect, useRef } from 'react';
 import { Exam, GradingResult, StudentAnswers, StudentInfo } from '../types';
 import { calculateScore } from '../utils/grading';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { CheckCircle, XCircle, ArrowLeft, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, RotateCcw } from 'lucide-react';
 
 interface ResultViewProps {
   exam: Exam;
@@ -24,6 +23,10 @@ export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentIn
     const save = async () => {
       if (!hasSaved.current) {
           hasSaved.current = true; // Prevent double save on strict mode
+          // Debugging log
+          console.log("🔵 START SAVING RESULT");
+          console.log("📦 PAYLOAD ANSWERS:", answers);
+          
           await db.saveResult({
               examId: exam.id,
               studentInfo,
@@ -104,9 +107,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentIn
 
         {/* Action Buttons */}
         <div className="flex gap-4 justify-center">
-            <button onClick={onBack} className="flex items-center gap-2 px-6 py-3 bg-white border border-gray-300 rounded-lg font-medium hover:bg-gray-50">
-               <ArrowLeft className="w-4 h-4" /> Về trang chủ
-            </button>
+            {/* Nút về trang chủ đã bị ẩn theo yêu cầu */}
             <button onClick={onRetry} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-200">
                <RotateCcw className="w-4 h-4" /> Làm lại
             </button>
