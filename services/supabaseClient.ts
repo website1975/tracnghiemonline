@@ -1,16 +1,13 @@
-
 import { createClient } from '@supabase/supabase-js';
 import { Exam, StoredResult } from '../types';
 import { storage } from '../utils/storage';
 
-// Lấy key từ biến môi trường hoặc localStorage (để người dùng tự nhập trong Dashboard)
+// Lấy key từ biến môi trường hoặc localStorage
 const getSupabaseConfig = () => {
-  // Fix ImportMeta type error by casting to any
-  const env = (import.meta as any).env;
-
+  // Sử dụng process.env đã được Vite define lại khi build
   // Ưu tiên lấy từ biến môi trường (khi deploy Vercel), sau đó mới đến LocalStorage
-  const url = env?.VITE_SUPABASE_URL || localStorage.getItem('SB_URL');
-  const key = env?.VITE_SUPABASE_KEY || localStorage.getItem('SB_KEY');
+  const url = process.env.VITE_SUPABASE_URL || localStorage.getItem('SB_URL');
+  const key = process.env.VITE_SUPABASE_KEY || localStorage.getItem('SB_KEY');
   return { url, key };
 };
 
@@ -36,13 +33,12 @@ export const db = {
   saveExam: async (exam: Exam): Promise<boolean> => {
     const supabase = getSupabase();
     if (supabase) {
-      // Upsert: Nếu ID đã có -> Update. Nếu chưa -> Insert.
       const { error } = await supabase.from('exams').upsert({
         id: exam.id,
         title: exam.title,
         subject: exam.subject,
         duration_minutes: exam.durationMinutes,
-        content: exam // Lưu toàn bộ JSON
+        content: exam
       }, { onConflict: 'id' });
       
       if (error) {
@@ -110,7 +106,7 @@ export const db = {
         score: data.result.score,
         details: data.result.details,
         time_spent: data.timeSpent,
-        answers: data.answers // Đã mở khóa: Lưu chi tiết bài làm
+        answers: data.answers 
       });
       if (error) {
         console.error("❌ SUPABASE SAVE ERROR:", error);
@@ -142,14 +138,14 @@ export const db = {
         result: { score: row.score, details: row.details, maxScore: 10 },
         completedAt: new Date(row.created_at).getTime(),
         timeSpent: row.time_spent,
-        answers: row.answers // Đã mở khóa: Đọc chi tiết bài làm
+        answers: row.answers
       }));
     } else {
       return storage.getResultsByExamId(examId);
     }
   },
 
-  // 7. Cập nhật điểm số (Cho giáo viên sửa điểm)
+  // 7. Cập nhật điểm số
   updateResultScore: async (resultId: string, newScore: number): Promise<boolean> => {
     const supabase = getSupabase();
     if (supabase) {
