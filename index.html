@@ -20,28 +20,50 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
 
     <style>
-      body { font-family: 'Inter', sans-serif; }
+      body { 
+        font-family: 'Inter', sans-serif; 
+        /* Fix lỗi chữ bị rời rạc: Giảm khoảng cách ký tự mặc định */
+        letter-spacing: -0.01em; 
+        color: #1e293b;
+      }
       ::-webkit-scrollbar { width: 8px; }
       ::-webkit-scrollbar-track { background: #f1f1f1; }
       ::-webkit-scrollbar-thumb { background: #888; border-radius: 4px; }
       ::-webkit-scrollbar-thumb:hover { background: #555; }
-      .katex { font-size: 1.1em; }
+      
+      /* Cấu hình KaTeX để hòa dòng tốt hơn với văn bản */
+      .katex { 
+        font-size: 1.05em !important; 
+        line-height: 1.2 !important;
+      }
+      
+      /* Class bao bọc công thức để tránh phá vỡ dòng chảy văn bản */
+      .math-content {
+        display: inline;
+        white-space: normal;
+        word-break: break-word;
+      }
+      
+      /* Fix cho các thẻ p chứa math */
+      p {
+        margin-bottom: 0.5rem;
+        line-height: 1.6;
+      }
     </style>
 <script type="importmap">
 {
   "imports": {
     "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
     "react/": "https://aistudiocdn.com/react@^19.2.0/",
     "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
     "vite": "https://aistudiocdn.com/vite@^7.2.4",
     "@vitejs/plugin-react": "https://aistudiocdn.com/@vitejs/plugin-react@^5.1.1",
-    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.555.0",
     "@supabase/supabase-js": "https://aistudiocdn.com/@supabase/supabase-js@^2.86.0"
   }
 }
 </script>
-<link rel="stylesheet" href="/index.css">
 </head>
   <body class="bg-gray-50 text-slate-900 antialiased">
     <div id="root"></div>
