@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 
 // Declaration for KaTeX strictly for TS compiler, 
@@ -48,11 +49,8 @@ export const MathRenderer: React.FC<MathRendererProps> = ({ text, className = ''
     <Tag 
       ref={containerRef} 
       className={`math-content ${className}`}
-      // We use dangerouslySetInnerHTML to allow basic HTML tags if any, 
-      // though KaTeX mainly handles the text content. 
-      // Security note: In a real app, sanitize 'text' before rendering.
-    >
-      {text}
-    </Tag>
+      // Enable HTML rendering to support <img> tags for questions
+      dangerouslySetInnerHTML={{ __html: text }}
+    />
   );
 };
