@@ -32,17 +32,19 @@ export const getSupabase = () => {
 // --- API Service Wrapper ---
 
 export const db = {
-  // 1. Lưu đề thi
+  // 1. Lưu đề thi (Hỗ trợ Sửa: Dùng upsert thay vì insert)
   saveExam: async (exam: Exam): Promise<boolean> => {
     const supabase = getSupabase();
     if (supabase) {
-      const { error } = await supabase.from('exams').insert({
+      // Upsert: Nếu ID đã có -> Update. Nếu chưa -> Insert.
+      const { error } = await supabase.from('exams').upsert({
         id: exam.id,
         title: exam.title,
         subject: exam.subject,
         duration_minutes: exam.durationMinutes,
         content: exam // Lưu toàn bộ JSON
-      });
+      }, { onConflict: 'id' });
+      
       if (error) {
         console.error('Lỗi lưu Supabase:', error);
         alert('Lỗi lưu đề thi lên Online. Vui lòng kiểm tra lại cấu hình Key.');
@@ -100,6 +102,7 @@ export const db = {
   saveResult: async (data: StoredResult) => {
     const supabase = getSupabase();
     if (supabase) {
+      console.log("🔵 START SAVING...", data);
       const { error } = await supabase.from('results').insert({
         exam_id: data.examId,
         student_name: data.studentInfo.name,
@@ -110,8 +113,10 @@ export const db = {
         answers: data.answers // Đã mở khóa: Lưu chi tiết bài làm
       });
       if (error) {
-        console.error("Lỗi lưu kết quả:", error);
-        alert("Không thể lưu kết quả. Vui lòng kiểm tra kết nối mạng.");
+        console.error("❌ SUPABASE SAVE ERROR:", error);
+        alert("Không thể lưu kết quả. Lỗi DB: " + error.message);
+      } else {
+        console.log("✅ SUPABASE SAVE SUCCESS");
       }
     } else {
       storage.saveResult(data);
