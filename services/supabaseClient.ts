@@ -282,5 +282,33 @@ export const db = {
     const { error } = await supabase.from('students').delete().eq('id', studentId);
     
     return !error;
+  },
+
+  // 13. (MỚI) Upload ảnh lên Storage
+  uploadImage: async (file: File): Promise<string | null> => {
+    const supabase = getSupabase();
+    if (!supabase) return null;
+
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${Math.random()}.${fileExt}`;
+    const filePath = `${fileName}`;
+
+    // Upload
+    const { error: uploadError } = await supabase.storage
+        .from('exam-images') // Yêu cầu bucket tên là 'exam-images'
+        .upload(filePath, file);
+
+    if (uploadError) {
+        console.error("Upload error:", uploadError);
+        alert("Lỗi upload ảnh: " + uploadError.message);
+        return null;
+    }
+
+    // Get Public URL
+    const { data } = supabase.storage
+        .from('exam-images')
+        .getPublicUrl(filePath);
+
+    return data.publicUrl;
   }
 };
