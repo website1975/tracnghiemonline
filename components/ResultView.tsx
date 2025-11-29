@@ -3,7 +3,7 @@ import { Exam, GradingResult, StudentAnswers, StudentInfo } from '../types';
 import { calculateScore } from '../utils/grading';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { CheckCircle, XCircle, RotateCcw } from 'lucide-react';
+import { CheckCircle, XCircle, RotateCcw, Play } from 'lucide-react';
 
 interface ResultViewProps {
   exam: Exam;
@@ -12,33 +12,33 @@ interface ResultViewProps {
   timeSpent: number; // in seconds
   onRetry: () => void;
   onBack: () => void;
+  isHistoryMode?: boolean;
 }
 
-export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentInfo, timeSpent, onRetry, onBack }) => {
+export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentInfo, timeSpent, onRetry, onBack, isHistoryMode = false }) => {
   const result: GradingResult = calculateScore(exam, answers);
   const hasSaved = useRef(false);
 
   useEffect(() => {
     // Save result to Database when component mounts
     const save = async () => {
-      if (!hasSaved.current) {
-          hasSaved.current = true; // Prevent double save on strict mode
-          // Debugging log
+      // Chỉ lưu nếu chưa lưu VÀ không phải đang xem lại lịch sử
+      if (!hasSaved.current && !isHistoryMode) {
+          hasSaved.current = true; 
           console.log("🔵 START SAVING RESULT");
-          console.log("📦 PAYLOAD ANSWERS:", answers);
           
           await db.saveResult({
               examId: exam.id,
               studentInfo,
               result,
-              answers, // QUAN TRỌNG: Gửi kèm bài làm chi tiết
+              answers,
               completedAt: Date.now(),
               timeSpent
           });
       }
     };
     save();
-  }, [exam.id, studentInfo, result, timeSpent, answers]);
+  }, [exam.id, studentInfo, result, timeSpent, answers, isHistoryMode]);
   
   // Helpers
   const renderOptionStatus = (qId: string, optIdx: number, correctIdx: number) => {
@@ -65,7 +65,9 @@ export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentIn
         
         {/* Score Card */}
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center border-t-8 border-blue-600">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Kết quả bài thi</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            {isHistoryMode ? 'Xem lại bài thi' : 'Kết quả làm bài'}
+          </h1>
           <p className="text-gray-500 mb-6">{exam.title} - {studentInfo.name}</p>
           
           <div className="relative inline-flex items-center justify-center">
@@ -107,9 +109,15 @@ export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentIn
 
         {/* Action Buttons */}
         <div className="flex gap-4 justify-center">
-            {/* Nút về trang chủ đã bị ẩn theo yêu cầu */}
-            <button onClick={onRetry} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-200">
-               <RotateCcw className="w-4 h-4" /> Làm lại
+            {/* Chỉ hiện nút Làm lại khi vừa thi xong (Không phải xem lịch sử) */}
+            {!isHistoryMode && (
+              <button onClick={onRetry} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-200">
+                <RotateCcw className="w-4 h-4" /> Làm lại ngay
+              </button>
+            )}
+            
+            <button onClick={onBack} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
+               {isHistoryMode ? 'Quay lại' : 'Về trang chủ'}
             </button>
         </div>
 
