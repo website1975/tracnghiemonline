@@ -4,28 +4,36 @@ import { ExamCreator } from './components/ExamCreator';
 import { ExamTaker } from './components/ExamTaker';
 import { ResultView } from './components/ResultView';
 import { TeacherDashboard } from './components/TeacherDashboard';
-import { Exam, StudentAnswers, StudentInfo } from './types';
+import { StudentLogin } from './components/StudentLogin';
+import { StudentDashboard } from './components/StudentDashboard';
+import { Exam, StudentAnswers, StudentInfo, StudentAccount, StoredResult } from './types';
 import { db } from './services/supabaseClient';
-import { GraduationCap, BookOpen, User, AlertTriangle, Loader2, Lock, X } from 'lucide-react';
+import { GraduationCap, BookOpen, AlertTriangle, Loader2, Lock, X } from 'lucide-react';
 
 enum AppState {
   HOME = 'HOME',
   TEACHER_DASHBOARD = 'TEACHER_DASHBOARD',
   TEACHER_CREATE = 'TEACHER_CREATE',
   STUDENT_LOGIN = 'STUDENT_LOGIN',
+  STUDENT_DASHBOARD = 'STUDENT_DASHBOARD', // NEW STATE
   STUDENT_EXAM = 'STUDENT_EXAM',
   STUDENT_RESULT = 'STUDENT_RESULT',
+  STUDENT_REVIEW = 'STUDENT_REVIEW' // Xem lại bài thi từ lịch sử
 }
 
 function App() {
   const [appState, setAppState] = useState<AppState>(AppState.HOME);
   const [currentExam, setCurrentExam] = useState<Exam | null>(null);
   const [studentInfo, setStudentInfo] = useState<StudentInfo>({ name: '', classId: '', studentId: '' });
+  const [studentAccount, setStudentAccount] = useState<StudentAccount | null>(null); // NEW: Logged in account
   const [studentAnswers, setStudentAnswers] = useState<StudentAnswers | null>(null);
   const [isLoadingExam, setIsLoadingExam] = useState(false);
 
   // Edit State
   const [examToEdit, setExamToEdit] = useState<Exam | null>(null);
+  
+  // Review History State
+  const [reviewResult, setReviewResult] = useState<StoredResult | null>(null);
 
   // Teacher Login State
   const [showTeacherLogin, setShowTeacherLogin] = useState(false);
@@ -63,10 +71,41 @@ function App() {
     setAppState(AppState.TEACHER_DASHBOARD);
   };
 
-  const handleStudentLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentExam && studentInfo.name) {
+  const handleLoginSuccess = (info: StudentInfo, account: StudentAccount) => {
+    setStudentInfo(info);
+    setStudentAccount(account);
+    if (currentExam) {
+      // Nếu có đề thi (từ link), vào thi luôn
       setAppState(AppState.STUDENT_EXAM);
+    } else {
+      // Nếu không, vào Dashboard
+      setAppState(AppState.STUDENT_DASHBOARD);
+    }
+  };
+
+  const handleTakeExamFromDashboard = async (examId: string) => {
+    setIsLoadingExam(true);
+    const exam = await db.getExamById(examId);
+    setIsLoadingExam(false);
+    if (exam) {
+      setCurrentExam(exam);
+      setAppState(AppState.STUDENT_EXAM);
+    }
+  };
+
+  const handleReviewHistory = async (result: StoredResult) => {
+    // Cần load nội dung đề thi gốc để hiển thị
+    setIsLoadingExam(true);
+    const exam = await db.getExamById(result.examId);
+    setIsLoadingExam(false);
+
+    if (exam && result.answers) {
+      setCurrentExam(exam);
+      setStudentAnswers(result.answers);
+      setReviewResult(result); // Đánh dấu là đang review lịch sử
+      setAppState(AppState.STUDENT_REVIEW);
+    } else {
+      alert("Không thể tải nội dung đề thi hoặc bài làm chi tiết.");
     }
   };
 
@@ -79,13 +118,27 @@ function App() {
   // --- Navigation Handlers ---
 
   const handleGoHome = () => {
-    // Reset toàn bộ trạng thái về ban đầu
+    // Clean up
     setStudentAnswers(null);
-    setStudentInfo({ name: '', classId: '', studentId: '' });
+    setReviewResult(null);
     setCurrentExam(null);
     setExamToEdit(null);
-    // Xóa query params trên URL nếu có
-    window.history.replaceState({}, '', window.location.pathname);
+    
+    // Nếu đang đăng nhập học sinh -> Về Dashboard học sinh
+    if (studentAccount) {
+       setAppState(AppState.STUDENT_DASHBOARD);
+       window.history.replaceState({}, '', window.location.pathname); // Xóa param nếu có
+    } else {
+       // Logout hoàn toàn
+       setStudentInfo({ name: '', classId: '', studentId: '' });
+       window.history.replaceState({}, '', window.location.pathname);
+       setAppState(AppState.HOME);
+    }
+  };
+  
+  const handleStudentLogout = () => {
+    setStudentAccount(null);
+    setStudentInfo({ name: '', classId: '', studentId: '' });
     setAppState(AppState.HOME);
   };
 
@@ -95,9 +148,10 @@ function App() {
       // Nếu là thi thật (có ID trên URL), reload trang để reset sạch sẽ timer và state
       window.location.reload();
     } else {
-      // Nếu là thi thử (Preview), chỉ quay lại màn hình nhập tên, giữ lại đề thi trong bộ nhớ
+      // Nếu là thi thử, quay lại login (hoặc dashboard nếu đã login)
       setStudentAnswers(null);
-      setAppState(AppState.STUDENT_LOGIN);
+      if (studentAccount) setAppState(AppState.STUDENT_DASHBOARD);
+      else setAppState(AppState.STUDENT_LOGIN);
     }
   };
 
@@ -163,16 +217,19 @@ function App() {
               </div>
             </button>
 
-            <div className="relative flex py-2 items-center">
-              <div className="flex-grow border-t border-gray-200"></div>
-              <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase">Hoặc</span>
-              <div className="flex-grow border-t border-gray-200"></div>
-            </div>
-
-             <div className="bg-yellow-50 p-4 rounded-xl border border-yellow-100 text-sm text-yellow-800 flex gap-2">
-               <AlertTriangle className="w-5 h-5 flex-shrink-0" />
-               <p>Học sinh vui lòng truy cập qua <strong>đường link</strong> giáo viên gửi để vào thẳng bài thi.</p>
-             </div>
+            <button
+              onClick={() => setAppState(AppState.STUDENT_LOGIN)}
+              className="group relative flex items-center p-4 border-2 border-gray-100 rounded-2xl hover:border-green-500 hover:bg-green-50 transition-all duration-300"
+            >
+              <div className="bg-green-100 p-3 rounded-xl mr-4 group-hover:bg-green-600 transition-colors">
+                <GraduationCap className="w-6 h-6 text-green-600 group-hover:text-white" />
+              </div>
+              <div className="text-left">
+                <h4 className="font-bold text-gray-900 group-hover:text-green-700">Học sinh</h4>
+                <p className="text-sm text-gray-500">Đăng nhập để thi & xem điểm</p>
+              </div>
+            </button>
+            
           </div>
         </div>
       )}
@@ -210,49 +267,6 @@ function App() {
     </div>
   );
 
-  const renderStudentLogin = () => (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 border-t-4 border-blue-600">
-        <div className="text-center mb-6">
-           <h3 className="text-sm font-bold text-blue-600 uppercase tracking-wide">Đề thi</h3>
-           <h2 className="text-2xl font-bold text-gray-900 mt-1">{currentExam?.title}</h2>
-           <p className="text-gray-500 mt-1 text-sm">{currentExam?.subject} - {currentExam?.durationMinutes} phút</p>
-        </div>
-        
-        <form onSubmit={handleStudentLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên thí sinh</label>
-            <input
-              required
-              type="text"
-              className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="Nhập họ tên của bạn..."
-              value={studentInfo.name}
-              onChange={(e) => setStudentInfo({ ...studentInfo, name: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Số báo danh / Mã SV</label>
-            <input
-              required
-              type="text"
-              className="w-full px-4 py-3 rounded-lg border focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="VD: HS001"
-              value={studentInfo.studentId}
-              onChange={(e) => setStudentInfo({ ...studentInfo, studentId: e.target.value })}
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-lg transition-colors shadow-lg shadow-blue-200 mt-4"
-          >
-            Vào Làm Bài
-          </button>
-        </form>
-      </div>
-    </div>
-  );
-
   return (
     <>
       {appState === AppState.HOME && renderHome()}
@@ -285,12 +299,26 @@ function App() {
           </header>
           <ExamCreator 
             onExamCreated={handleExamCreated} 
-            initialExam={examToEdit} // Pass exam to edit
+            initialExam={examToEdit} 
           />
         </div>
       )}
 
-      {appState === AppState.STUDENT_LOGIN && renderStudentLogin()}
+      {appState === AppState.STUDENT_LOGIN && (
+         <StudentLogin 
+            onLoginSuccess={handleLoginSuccess} 
+            targetExamTitle={currentExam?.title}
+         />
+      )}
+
+      {appState === AppState.STUDENT_DASHBOARD && studentAccount && (
+         <StudentDashboard
+            account={studentAccount}
+            onLogout={handleStudentLogout}
+            onReviewResult={handleReviewHistory}
+            onTakeExam={handleTakeExamFromDashboard}
+         />
+      )}
       
       {appState === AppState.STUDENT_EXAM && currentExam && (
         <ExamTaker
@@ -301,13 +329,13 @@ function App() {
         />
       )}
       
-      {appState === AppState.STUDENT_RESULT && currentExam && studentAnswers && (
+      {(appState === AppState.STUDENT_RESULT || appState === AppState.STUDENT_REVIEW) && currentExam && studentAnswers && (
         <ResultView
           exam={currentExam}
           answers={studentAnswers}
           studentInfo={studentInfo}
-          timeSpent={(currentExam.durationMinutes * 60) /* Approximate */}
-          onRetry={handleRetry}
+          timeSpent={reviewResult?.timeSpent || (currentExam.durationMinutes * 60)} // Use stored time if reviewing
+          onRetry={appState === AppState.STUDENT_REVIEW ? handleGoHome : handleRetry} // If review, button goes back to dash
           onBack={handleGoHome}
         />
       )}
