@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect } from 'react';
 import { Exam, PartType } from '../types';
 import { parseExamFromContent } from '../services/geminiService';
+import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, Save, Trash, Plus } from 'lucide-react';
+import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, Save, Trash, Plus, Copy, ImagePlus } from 'lucide-react';
 
 interface ExamCreatorProps {
   onExamCreated: (exam: Exam) => Promise<void> | void;
@@ -24,6 +26,11 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
   const [isReviewMode, setIsReviewMode] = useState(false);
   const [activeTab, setActiveTab] = useState<PartType>(PartType.MULTIPLE_CHOICE);
   const [showGuide, setShowGuide] = useState(false);
+  
+  // Image Uploader State
+  const [showImageManager, setShowImageManager] = useState(false);
+  const [uploadingImg, setUploadingImg] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
 
   // Load initial exam if editing
   useEffect(() => {
@@ -46,6 +53,28 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
         setInputText('');
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  // Upload image to Supabase Storage and get URL
+  const handleUploadToStorage = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setUploadingImg(true);
+    const url = await db.uploadImage(file);
+    setUploadingImg(false);
+
+    if (url) {
+        setUploadedUrl(url);
+    }
+  };
+
+  const handleCopyImgTag = () => {
+    if (uploadedUrl) {
+        const tag = `<div class="my-2 flex justify-center"><img src="${uploadedUrl}" class="max-h-64 rounded-lg border shadow-sm" alt="Hình minh họa" /></div>`;
+        navigator.clipboard.writeText(tag);
+        alert("Đã copy mã ảnh! Hãy dán vào ô nội dung câu hỏi.");
     }
   };
 
@@ -157,10 +186,19 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
     return (
       <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-6">
         <div className="flex items-center justify-between bg-white p-4 rounded-xl border shadow-sm sticky top-0 z-20">
-          <div>
-             <h2 className="text-xl font-bold text-gray-800">{initialExam ? 'Chỉnh Sửa Đề Thi' : 'Hiệu Chỉnh Đề Mới'}</h2>
-             <p className="text-sm text-gray-500">Xem lại và chỉnh sửa nội dung.</p>
+          <div className="flex items-center gap-4">
+             <div>
+                <h2 className="text-xl font-bold text-gray-800">{initialExam ? 'Chỉnh Sửa Đề Thi' : 'Hiệu Chỉnh Đề Mới'}</h2>
+                <p className="text-sm text-gray-500">Xem lại và chỉnh sửa nội dung.</p>
+             </div>
+             <button 
+                onClick={() => setShowImageManager(!showImageManager)}
+                className="ml-4 px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-orange-200"
+             >
+                <ImagePlus className="w-4 h-4" /> Kho Ảnh
+             </button>
           </div>
+
           <div className="flex gap-3">
              <button 
                 onClick={() => {
@@ -185,6 +223,47 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
              </button>
           </div>
         </div>
+        
+        {/* Image Manager Panel */}
+        {showImageManager && (
+            <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 animate-in slide-in-from-top-4">
+                <h3 className="font-bold text-orange-800 mb-2 flex items-center gap-2">
+                    <ImagePlus className="w-5 h-5" /> Upload ảnh minh họa cho câu hỏi
+                </h3>
+                <div className="flex flex-col md:flex-row gap-4 items-start">
+                    <div className="flex-1">
+                        <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={handleUploadToStorage}
+                            disabled={uploadingImg}
+                            className="block w-full text-sm text-gray-500
+                                file:mr-4 file:py-2 file:px-4
+                                file:rounded-full file:border-0
+                                file:text-sm file:font-semibold
+                                file:bg-orange-100 file:text-orange-700
+                                hover:file:bg-orange-200"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Yêu cầu đã tạo bucket 'exam-images' (Public) trên Supabase.</p>
+                    </div>
+                    {uploadingImg && <Loader2 className="w-6 h-6 animate-spin text-orange-600" />}
+                    {uploadedUrl && (
+                        <div className="flex-1 w-full bg-white p-2 rounded border flex gap-2 items-center">
+                            <img src={uploadedUrl} className="h-12 w-12 object-cover rounded" alt="Preview" />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs text-gray-400 truncate">{uploadedUrl}</p>
+                                <button 
+                                    onClick={handleCopyImgTag}
+                                    className="mt-1 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 flex items-center gap-1"
+                                >
+                                    <Copy className="w-3 h-3" /> Copy mã chèn
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        )}
 
         {/* Exam Metadata Edit */}
         <div className="bg-white p-6 rounded-xl border space-y-4">
@@ -250,7 +329,7 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                  
                  <div className="space-y-4">
                     <div className="flex flex-col gap-1">
-                       <label className="text-xs text-gray-500 font-medium uppercase">Nội dung câu hỏi (Hỗ trợ LaTeX: $...$)</label>
+                       <label className="text-xs text-gray-500 font-medium uppercase">Nội dung câu hỏi (Hỗ trợ LaTeX: $...$ và HTML: &lt;img ... /&gt;)</label>
                        <textarea 
                           className="w-full p-3 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none font-mono text-sm leading-relaxed"
                           rows={3}
@@ -287,7 +366,9 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
 
                     {/* Lời giải / Giải thích */}
                     <div className="mt-2 pt-2 border-t border-gray-100">
-                       <label className="block text-xs font-bold text-yellow-700 mb-1">Lời giải / Giải thích (AI):</label>
+                       <label className="block text-xs font-bold text-yellow-700 mb-1 flex items-center gap-1">
+                           <Info className="w-3 h-3" /> Lời giải / Giải thích (AI):
+                       </label>
                        <textarea 
                           className="w-full p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-gray-700 font-mono"
                           rows={2}
@@ -342,7 +423,9 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
 
                  {/* Lời giải / Giải thích */}
                  <div className="mt-4 pt-2 border-t border-gray-100">
-                    <label className="block text-xs font-bold text-yellow-700 mb-1">Lời giải / Giải thích (AI):</label>
+                    <label className="block text-xs font-bold text-yellow-700 mb-1 flex items-center gap-1">
+                           <Info className="w-3 h-3" /> Lời giải / Giải thích (AI):
+                    </label>
                     <textarea 
                        className="w-full p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-gray-700 font-mono"
                        rows={2}
@@ -384,7 +467,9 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
 
                  {/* Lời giải / Giải thích */}
                  <div className="mt-4 pt-2 border-t border-gray-100">
-                    <label className="block text-xs font-bold text-yellow-700 mb-1">Lời giải / Giải thích (AI):</label>
+                    <label className="block text-xs font-bold text-yellow-700 mb-1 flex items-center gap-1">
+                           <Info className="w-3 h-3" /> Lời giải / Giải thích (AI):
+                    </label>
                     <textarea 
                        className="w-full p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-gray-700 font-mono"
                        rows={2}
