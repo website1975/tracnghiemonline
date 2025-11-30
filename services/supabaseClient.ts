@@ -290,7 +290,8 @@ export const db = {
     if (!supabase) return null;
 
     const fileExt = file.name.split('.').pop();
-    const fileName = `${Math.random()}.${fileExt}`;
+    // Sử dụng timestamp + random để đảm bảo tên file duy nhất
+    const fileName = `${Date.now()}_${Math.floor(Math.random() * 1000)}.${fileExt}`;
     const filePath = `${fileName}`;
 
     // Upload
@@ -300,7 +301,15 @@ export const db = {
 
     if (uploadError) {
         console.error("Upload error:", uploadError);
-        alert("Lỗi upload ảnh: " + uploadError.message);
+        // Kiểm tra lỗi phổ biến về quyền hoặc bucket không tồn tại
+        if (uploadError.message.includes("not found") || uploadError.message.includes("security policy")) {
+           alert(
+             "Lỗi Upload: Không tìm thấy Bucket hoặc chưa có quyền Ghi.\n\n" +
+             "KHẮC PHỤC: Vào Supabase -> SQL Editor và chạy lệnh tạo Policy cho phép INSERT vào bảng storage.objects."
+           );
+        } else {
+           alert("Lỗi upload ảnh: " + uploadError.message);
+        }
         return null;
     }
 
