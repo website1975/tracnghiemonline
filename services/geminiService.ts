@@ -142,7 +142,13 @@ export const parseExamFromContent = async (
       ...data,
       id: crypto.randomUUID(),
       createdAt: Date.now(),
-      durationMinutes: data.durationMinutes || 45
+      durationMinutes: data.durationMinutes || 45,
+      // Default standard scores
+      scoreConfig: {
+        part1PerQuestion: 0.25,
+        part2MaxScore: 1.0,
+        part3PerQuestion: 0.5
+      }
     };
   } catch (e) {
     console.error("Failed to parse Gemini JSON", e);
