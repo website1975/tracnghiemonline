@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Exam, StoredResult, StudentAccount } from '../types';
 import { db } from '../services/supabaseClient';
@@ -621,6 +620,14 @@ alter table students enable row level security;
 create policy "Public Access" on exams for all using (true);
 create policy "Public Access" on results for all using (true);
 create policy "Public Access" on students for all using (true);
+
+-- 5. CẤU HÌNH STORAGE (Cho phép Upload ảnh)
+-- (Đảm bảo bạn đã tạo bucket tên là 'exam-images' và bật Public)
+insert into storage.buckets (id, name, public) values ('exam-images', 'exam-images', true) on conflict do nothing;
+-- Policy cho phép mọi người upload
+create policy "Public Upload" on storage.objects for insert with check ( bucket_id = 'exam-images' );
+-- Policy cho phép mọi người xem ảnh
+create policy "Public Select" on storage.objects for select using ( bucket_id = 'exam-images' );
 `}</pre>
                    </div>
                 </div>
