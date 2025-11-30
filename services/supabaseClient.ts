@@ -170,9 +170,29 @@ export const db = {
     }
   },
 
+  // 8. (MỚI) Xóa kết quả thi (Cho giáo viên)
+  deleteResult: async (resultId: string): Promise<boolean> => {
+    const supabase = getSupabase();
+    if (supabase) {
+      const { error } = await supabase
+        .from('results')
+        .delete()
+        .eq('id', resultId);
+      
+      if (error) {
+        console.error("Lỗi xóa kết quả:", error);
+        return false;
+      }
+      return true;
+    } else {
+      storage.deleteResult(resultId);
+      return true;
+    }
+  },
+
   // --- STUDENT AUTH & HISTORY ---
 
-  // 8. Đăng ký học sinh
+  // 9. Đăng ký học sinh
   registerStudent: async (info: { fullName: string, className: string, username: string, password: string }): Promise<{ success: boolean, message?: string }> => {
     const supabase = getSupabase();
     if (!supabase) return { success: false, message: "Chưa kết nối Database" };
@@ -192,7 +212,7 @@ export const db = {
     return { success: true };
   },
 
-  // 9. Đăng nhập học sinh
+  // 10. Đăng nhập học sinh
   loginStudent: async (username: string, password: string): Promise<StudentAccount | null> => {
     const supabase = getSupabase();
     if (!supabase) return null;
@@ -208,7 +228,7 @@ export const db = {
     return data as StudentAccount;
   },
 
-  // 10. Lấy lịch sử thi của học sinh (FIXED: MANUAL JOIN)
+  // 11. Lấy lịch sử thi của học sinh (FIXED: MANUAL JOIN)
   getStudentHistory: async (accountId: string, studentId: string): Promise<StoredResult[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
@@ -259,7 +279,7 @@ export const db = {
     }));
   },
 
-  // 11. (MỚI) Lấy danh sách tất cả học sinh (Cho Giáo viên)
+  // 12. (MỚI) Lấy danh sách tất cả học sinh (Cho Giáo viên)
   getAllStudents: async (): Promise<StudentAccount[]> => {
     const supabase = getSupabase();
     if (!supabase) return [];
@@ -273,7 +293,7 @@ export const db = {
     return data as StudentAccount[];
   },
 
-  // 12. (MỚI) Xóa học sinh
+  // 13. (MỚI) Xóa học sinh
   deleteStudent: async (studentId: string): Promise<boolean> => {
     const supabase = getSupabase();
     if (!supabase) return false;
@@ -284,7 +304,7 @@ export const db = {
     return !error;
   },
 
-  // 13. (MỚI) Upload ảnh lên Storage
+  // 14. (MỚI) Upload ảnh lên Storage
   uploadImage: async (file: File): Promise<string | null> => {
     const supabase = getSupabase();
     if (!supabase) return null;
