@@ -224,14 +224,18 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
           </div>
         </div>
         
-        {/* Image Manager Panel */}
+        {/* Image Manager Panel (Floating Fixed) */}
         {showImageManager && (
-            <div className="bg-orange-50 p-4 rounded-xl border border-orange-200 animate-in slide-in-from-top-4">
-                <h3 className="font-bold text-orange-800 mb-2 flex items-center gap-2">
-                    <ImagePlus className="w-5 h-5" /> Upload ảnh minh họa cho câu hỏi
-                </h3>
-                <div className="flex flex-col md:flex-row gap-4 items-start">
-                    <div className="flex-1">
+            <div className="fixed bottom-6 right-6 z-50 w-96 bg-white p-4 rounded-xl shadow-2xl border-2 border-orange-200 animate-in slide-in-from-bottom-4">
+                <div className="flex justify-between items-center mb-2">
+                    <h3 className="font-bold text-orange-800 flex items-center gap-2">
+                        <ImagePlus className="w-5 h-5" /> Kho Ảnh (Upload)
+                    </h3>
+                    <button onClick={() => setShowImageManager(false)} className="text-gray-400 hover:text-gray-600"><Trash className="w-4 h-4" /></button>
+                </div>
+                
+                <div className="flex flex-col gap-3">
+                    <div>
                         <input 
                             type="file" 
                             accept="image/*"
@@ -245,19 +249,18 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                                 hover:file:bg-orange-200"
                         />
                         <div className="text-xs text-gray-500 mt-2">
-                           <p><strong>Lưu ý:</strong> Cần chạy lệnh SQL cấp quyền nếu upload lỗi:</p>
-                           <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-700 select-all">create policy "Public Upload" on storage.objects for insert with check ( bucket_id = 'exam-images' );</code>
+                           <p><strong>Lưu ý:</strong> Chạy SQL cấp quyền nếu upload lỗi (Xem Cấu hình).</p>
                         </div>
                     </div>
-                    {uploadingImg && <Loader2 className="w-6 h-6 animate-spin text-orange-600" />}
+                    {uploadingImg && <div className="text-center text-orange-600 text-sm font-bold flex items-center justify-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Đang tải lên...</div>}
                     {uploadedUrl && (
-                        <div className="flex-1 w-full bg-white p-2 rounded border flex gap-2 items-center">
-                            <img src={uploadedUrl} className="h-12 w-12 object-cover rounded" alt="Preview" />
+                        <div className="bg-gray-50 p-2 rounded border flex gap-2 items-center">
+                            <img src={uploadedUrl} className="h-10 w-10 object-cover rounded" alt="Preview" />
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs text-gray-400 truncate">{uploadedUrl}</p>
                                 <button 
                                     onClick={handleCopyImgTag}
-                                    className="mt-1 text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 flex items-center gap-1"
+                                    className="mt-1 w-full text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 flex items-center justify-center gap-1"
                                 >
                                     <Copy className="w-3 h-3" /> Copy mã chèn
                                 </button>
@@ -268,9 +271,9 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
             </div>
         )}
 
-        {/* Exam Metadata Edit */}
+        {/* Exam Metadata & Scoring Config */}
         <div className="bg-white p-6 rounded-xl border space-y-4">
-           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên đề thi</label>
                  <input 
@@ -298,6 +301,46 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                     className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 outline-none"
                  />
               </div>
+           </div>
+
+           {/* Score Config */}
+           <div className="pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+                <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Điểm câu Phần 1 (TN)</label>
+                    <input 
+                        type="number" step="0.05"
+                        value={parsedExam.scoreConfig?.part1PerQuestion ?? 0.25}
+                        onChange={(e) => setParsedExam({
+                            ...parsedExam, 
+                            scoreConfig: { ...parsedExam.scoreConfig!, part1PerQuestion: parseFloat(e.target.value) }
+                        })}
+                        className="w-full p-2 border rounded text-sm"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Điểm tối đa câu Phần 2 (Đ/S)</label>
+                    <input 
+                        type="number" step="0.1"
+                        value={parsedExam.scoreConfig?.part2MaxScore ?? 1.0}
+                        onChange={(e) => setParsedExam({
+                            ...parsedExam, 
+                            scoreConfig: { ...parsedExam.scoreConfig!, part2MaxScore: parseFloat(e.target.value) }
+                        })}
+                        className="w-full p-2 border rounded text-sm"
+                    />
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-gray-600 mb-1">Điểm câu Phần 3 (Điền)</label>
+                    <input 
+                        type="number" step="0.1"
+                        value={parsedExam.scoreConfig?.part3PerQuestion ?? 0.5}
+                        onChange={(e) => setParsedExam({
+                            ...parsedExam, 
+                            scoreConfig: { ...parsedExam.scoreConfig!, part3PerQuestion: parseFloat(e.target.value) }
+                        })}
+                        className="w-full p-2 border rounded text-sm"
+                    />
+                </div>
            </div>
         </div>
 
@@ -623,6 +666,7 @@ const DEMO_EXAM: Exam = {
   subject: "Toán học",
   durationMinutes: 45,
   createdAt: Date.now(),
+  scoreConfig: { part1PerQuestion: 0.25, part2MaxScore: 1.0, part3PerQuestion: 0.5 },
   part1: [
     {
       id: "p1-1",
