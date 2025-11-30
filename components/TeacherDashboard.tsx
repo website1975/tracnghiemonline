@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Exam, StoredResult, StudentAccount } from '../types';
 import { db } from '../services/supabaseClient';
@@ -102,6 +103,18 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
     setActiveTab('results');
   };
 
+  const handleDeleteResult = async (resultId: string) => {
+    if (confirm("Bạn có chắc chắn muốn xóa kết quả thi này vĩnh viễn không? Hành động này không thể hoàn tác.")) {
+        const success = await db.deleteResult(resultId);
+        if (success) {
+            // Cập nhật state local
+            setRawResults(prev => prev.filter(r => r.id !== resultId));
+        } else {
+            alert("Lỗi khi xóa kết quả. Vui lòng thử lại.");
+        }
+    }
+  };
+
   // Logic gộp kết quả học sinh
   const processedResults = useMemo(() => {
     const groups: Record<string, StoredResult[]> = {};
@@ -189,7 +202,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-blue-700">Trang Giáo Viên</h1>
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm animate-pulse">v4.0 (Student Mgmt)</span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm animate-pulse">v4.1 (Full)</span>
           </div>
           <div className="flex gap-3">
              <button 
@@ -313,7 +326,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
           </div>
         )}
 
-        {/* ... (Giữ nguyên phần Results Tab) ... */}
+        {/* --- RESULT TAB --- */}
         {activeTab === 'results' && (
           <div className="space-y-6">
             <h2 className="text-2xl font-bold text-gray-800">Kết quả làm bài</h2>
@@ -347,6 +360,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                             <th className="p-4">Điểm số (Cao nhất)</th>
                             <th className="p-4">Chi tiết</th>
                             <th className="p-4">Lần thi cuối</th>
+                            <th className="p-4">Thao tác</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y">
@@ -418,6 +432,17 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                                  )}
                               </td>
                               <td className="p-4 text-gray-500">{new Date(r.completedAt).toLocaleString()}</td>
+                              <td className="p-4">
+                                {r.id && (
+                                    <button 
+                                        onClick={() => handleDeleteResult(r.id!)}
+                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg hover:shadow-sm border border-transparent hover:border-red-100 transition-all"
+                                        title="Xóa kết quả này"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                )}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
@@ -624,9 +649,14 @@ create policy "Public Access" on students for all using (true);
 -- 5. CẤU HÌNH STORAGE (Cho phép Upload ảnh)
 -- (Đảm bảo bạn đã tạo bucket tên là 'exam-images' và bật Public)
 insert into storage.buckets (id, name, public) values ('exam-images', 'exam-images', true) on conflict do nothing;
--- Policy cho phép mọi người upload
+
+-- 5.1 Xóa Policy cũ (Để tránh lỗi trùng lặp khi chạy lại)
+drop policy if exists "Public Upload" on storage.objects;
+drop policy if exists "Public Select" on storage.objects;
+
+-- 5.2 Tạo Policy cho phép mọi người upload
 create policy "Public Upload" on storage.objects for insert with check ( bucket_id = 'exam-images' );
--- Policy cho phép mọi người xem ảnh
+-- 5.3 Tạo Policy cho phép mọi người xem ảnh
 create policy "Public Select" on storage.objects for select using ( bucket_id = 'exam-images' );
 `}</pre>
                    </div>
@@ -784,8 +814,8 @@ create policy "Public Select" on storage.objects for select using ( bucket_id = 
                                      <span className="font-bold text-emerald-600">Câu {idx + 1}:</span>
                                      <div><MathRenderer text={q.text} /></div>
                                   </div>
-                               </div>
-                               <div className="min-w-[150px]">
+                                </div>
+                                <div className="min-w-[150px]">
                                   <span className="text-xs text-gray-500 block">Đáp án:</span>
                                   <div className="p-2 bg-green-50 border border-green-200 text-green-800 font-bold rounded">
                                      {q.correctAnswer}
