@@ -244,7 +244,10 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                                 file:bg-orange-100 file:text-orange-700
                                 hover:file:bg-orange-200"
                         />
-                        <p className="text-xs text-gray-500 mt-1">Yêu cầu đã tạo bucket 'exam-images' (Public) trên Supabase.</p>
+                        <div className="text-xs text-gray-500 mt-2">
+                           <p><strong>Lưu ý:</strong> Cần chạy lệnh SQL cấp quyền nếu upload lỗi:</p>
+                           <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-700 select-all">create policy "Public Upload" on storage.objects for insert with check ( bucket_id = 'exam-images' );</code>
+                        </div>
                     </div>
                     {uploadingImg && <Loader2 className="w-6 h-6 animate-spin text-orange-600" />}
                     {uploadedUrl && (
@@ -399,7 +402,7 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                  <div className="space-y-3 pl-4 border-l-2 border-gray-100">
                     {q.subQuestions.map((sub, sIdx) => (
                        <div key={sub.id} className="flex items-center gap-4">
-                          <span className="text-sm font-bold w-4">{String.fromCharCode(97 + sIdx)})</span>
+                          <span className="text-sm font-bold w-4">{String.fromCharCode(97 + sIdx)} &rarr;</span>
                           <div className="flex-1">
                              <input 
                                 type="text" 
