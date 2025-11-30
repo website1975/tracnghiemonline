@@ -36,11 +36,19 @@ export interface QuestionPart3 {
   explanation?: string;
 }
 
+// NEW: Score Configuration
+export interface ExamScoreConfig {
+  part1PerQuestion: number; // Default 0.25
+  part2MaxScore: number;    // Default 1.0 (for 4 correct subs)
+  part3PerQuestion: number; // Default 0.5
+}
+
 export interface Exam {
   id: string;
   title: string;
   subject: string;
   durationMinutes: number;
+  scoreConfig?: ExamScoreConfig; // Optional for backward compatibility
   part1: QuestionPart1[];
   part2: QuestionPart2[];
   part3: QuestionPart3[];
