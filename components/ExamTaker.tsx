@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { Exam, StudentAnswers, StudentInfo, PartType } from '../types';
 import { MathRenderer } from './MathRenderer';
@@ -19,6 +20,10 @@ export const ExamTaker: React.FC<ExamTakerProps> = ({ exam, studentInfo, onSubmi
   });
   const [activePart, setActivePart] = useState<PartType>(PartType.MULTIPLE_CHOICE);
   const [confirmSubmit, setConfirmSubmit] = useState(false);
+
+  // Scores for display
+  const p1Score = exam.scoreConfig?.part1PerQuestion ?? 0.25;
+  const p3Score = exam.scoreConfig?.part3PerQuestion ?? 0.5;
 
   // Timer
   useEffect(() => {
@@ -223,7 +228,7 @@ export const ExamTaker: React.FC<ExamTakerProps> = ({ exam, studentInfo, onSubmi
               <div className="space-y-8">
                 <div className="border-b pb-4 mb-4">
                   <h2 className="text-lg font-bold text-gray-900">Phần 1: Trắc nghiệm nhiều lựa chọn</h2>
-                  <p className="text-gray-500 text-sm">Chọn 1 phương án đúng nhất cho mỗi câu hỏi. (0.25 điểm/câu)</p>
+                  <p className="text-gray-500 text-sm">Chọn 1 phương án đúng nhất cho mỗi câu hỏi. ({p1Score} điểm/câu)</p>
                 </div>
                 {exam.part1.map((q, idx) => (
                   <div key={q.id} className="scroll-mt-24" id={`p1-q${idx}`}>
@@ -317,7 +322,7 @@ export const ExamTaker: React.FC<ExamTakerProps> = ({ exam, studentInfo, onSubmi
               <div className="space-y-8">
                 <div className="border-b pb-4 mb-4">
                   <h2 className="text-lg font-bold text-gray-900">Phần 3: Trả lời ngắn</h2>
-                  <p className="text-gray-500 text-sm">Viết kết quả vào ô trống (0.5 điểm/câu).</p>
+                  <p className="text-gray-500 text-sm">Viết kết quả vào ô trống ({p3Score} điểm/câu).</p>
                 </div>
                 {exam.part3.map((q, idx) => (
                   <div key={q.id} className="scroll-mt-24">
