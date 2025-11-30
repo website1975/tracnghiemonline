@@ -72,5 +72,11 @@ export const storage = {
       return r;
     });
     localStorage.setItem(KEYS.RESULTS, JSON.stringify(updated));
+  },
+
+  deleteResult: (resultId: string) => {
+    const results = storage.getAllResults();
+    const updated = results.filter(r => r.id !== resultId);
+    localStorage.setItem(KEYS.RESULTS, JSON.stringify(updated));
   }
 };
