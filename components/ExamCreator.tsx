@@ -4,7 +4,7 @@ import { Exam, PartType, ExamType } from '../types';
 import { parseExamFromContent } from '../services/geminiService';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, Save, Trash, Plus, Copy, ImagePlus, CalendarClock, Lock } from 'lucide-react';
+import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, Save, Trash, Copy, ImagePlus, CalendarClock, Lock } from 'lucide-react';
 
 interface ExamCreatorProps {
   onExamCreated: (exam: Exam) => Promise<void> | void;
