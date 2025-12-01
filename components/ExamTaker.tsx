@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Exam, StudentAnswers, StudentInfo, PartType, ExamType } from '../types';
 import { MathRenderer } from './MathRenderer';
-import { Clock, Save} from 'lucide-react';
+import { Clock, Save } from 'lucide-react';
 
 interface ExamTakerProps {
   exam: Exam;
