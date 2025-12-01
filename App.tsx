@@ -8,26 +8,29 @@ import { StudentLogin } from './components/StudentLogin';
 import { StudentDashboard } from './components/StudentDashboard';
 import { Exam, StudentAnswers, StudentInfo, StudentAccount, StoredResult } from './types';
 import { db } from './services/supabaseClient';
-import { GraduationCap, BookOpen, AlertTriangle, Loader2, Lock, X } from 'lucide-react';
+import { GraduationCap, BookOpen, Loader2, Lock, X } from 'lucide-react';
 
 enum AppState {
   HOME = 'HOME',
   TEACHER_DASHBOARD = 'TEACHER_DASHBOARD',
   TEACHER_CREATE = 'TEACHER_CREATE',
   STUDENT_LOGIN = 'STUDENT_LOGIN',
-  STUDENT_DASHBOARD = 'STUDENT_DASHBOARD', // NEW STATE
+  STUDENT_DASHBOARD = 'STUDENT_DASHBOARD',
   STUDENT_EXAM = 'STUDENT_EXAM',
   STUDENT_RESULT = 'STUDENT_RESULT',
-  STUDENT_REVIEW = 'STUDENT_REVIEW' // Xem lại bài thi từ lịch sử
+  STUDENT_REVIEW = 'STUDENT_REVIEW'
 }
 
 function App() {
   const [appState, setAppState] = useState<AppState>(AppState.HOME);
   const [currentExam, setCurrentExam] = useState<Exam | null>(null);
   const [studentInfo, setStudentInfo] = useState<StudentInfo>({ name: '', classId: '', studentId: '' });
-  const [studentAccount, setStudentAccount] = useState<StudentAccount | null>(null); // NEW: Logged in account
+  const [studentAccount, setStudentAccount] = useState<StudentAccount | null>(null);
   const [studentAnswers, setStudentAnswers] = useState<StudentAnswers | null>(null);
   const [isLoadingExam, setIsLoadingExam] = useState(false);
+  
+  // NEW: Retry Counter to force ExamTaker reset
+  const [retryCount, setRetryCount] = useState(0);
 
   // Edit State
   const [examToEdit, setExamToEdit] = useState<Exam | null>(null);
@@ -48,7 +51,6 @@ function App() {
 
       if (examId) {
         setIsLoadingExam(true);
-        // Load exam from DB (Async)
         const exam = await db.getExamById(examId);
         setIsLoadingExam(false);
 
@@ -56,7 +58,6 @@ function App() {
           setCurrentExam(exam);
           setAppState(AppState.STUDENT_LOGIN);
         } else {
-          // Fallback UI if exam not found
           alert('Không tìm thấy đề thi này. Có thể link bị sai, đề đã bị xóa, hoặc bạn chưa kết nối Database.');
           window.history.replaceState({}, '', window.location.pathname);
         }
@@ -73,7 +74,6 @@ function App() {
         const { info, account } = JSON.parse(stored);
         setStudentInfo(info);
         setStudentAccount(account);
-        // If not deep linking to an exam, go to dashboard
         const params = new URLSearchParams(window.location.search);
         if (!params.get('examId')) {
           setAppState(AppState.STUDENT_DASHBOARD);
@@ -86,21 +86,19 @@ function App() {
 
   const handleExamCreated = async (exam: Exam) => {
     await db.saveExam(exam);
-    setExamToEdit(null); // Clear edit state
+    setExamToEdit(null);
     setAppState(AppState.TEACHER_DASHBOARD);
   };
 
   const handleLoginSuccess = (info: StudentInfo, account: StudentAccount) => {
     setStudentInfo(info);
     setStudentAccount(account);
-    // Persist login
     localStorage.setItem('EXAMPRO_STUDENT', JSON.stringify({ info, account }));
 
     if (currentExam) {
-      // Nếu có đề thi (từ link), vào thi luôn
+      setRetryCount(0); // Reset count for new exam
       setAppState(AppState.STUDENT_EXAM);
     } else {
-      // Nếu không, vào Dashboard
       setAppState(AppState.STUDENT_DASHBOARD);
     }
   };
@@ -111,17 +109,16 @@ function App() {
     setIsLoadingExam(false);
     if (exam) {
       setCurrentExam(exam);
-      // Ensure student info has correct account ID
       if (studentAccount) {
          setStudentInfo(prev => ({ ...prev, accountId: studentAccount.id }));
       }
-      setStudentAnswers(null); // Reset answers
+      setStudentAnswers(null);
+      setRetryCount(0); // Reset count
       setAppState(AppState.STUDENT_EXAM);
     }
   };
 
   const handleReviewHistory = async (result: StoredResult) => {
-    // Cần load nội dung đề thi gốc để hiển thị
     setIsLoadingExam(true);
     const exam = await db.getExamById(result.examId);
     setIsLoadingExam(false);
@@ -129,7 +126,7 @@ function App() {
     if (exam && result.answers) {
       setCurrentExam(exam);
       setStudentAnswers(result.answers);
-      setReviewResult(result); // Đánh dấu là đang review lịch sử
+      setReviewResult(result);
       setAppState(AppState.STUDENT_REVIEW);
     } else {
       alert("Không thể tải nội dung đề thi hoặc bài làm chi tiết.");
@@ -139,24 +136,20 @@ function App() {
   const handleExamSubmit = (answers: StudentAnswers, timeSpent: number) => {
     setStudentAnswers(answers);
     setAppState(AppState.STUDENT_RESULT);
-    // Saving happens in ResultView
   };
 
   // --- Navigation Handlers ---
 
   const handleGoHome = () => {
-    // Clean up
     setStudentAnswers(null);
     setReviewResult(null);
     setCurrentExam(null);
     setExamToEdit(null);
     
-    // Nếu đang đăng nhập học sinh -> Về Dashboard học sinh
     if (studentAccount) {
        setAppState(AppState.STUDENT_DASHBOARD);
-       window.history.replaceState({}, '', window.location.pathname); // Xóa param nếu có
+       window.history.replaceState({}, '', window.location.pathname);
     } else {
-       // Logout hoàn toàn
        setStudentInfo({ name: '', classId: '', studentId: '' });
        window.history.replaceState({}, '', window.location.pathname);
        setAppState(AppState.HOME);
@@ -171,22 +164,28 @@ function App() {
   };
 
   const handleRetry = () => {
-    // 1. Reset dữ liệu bài làm cũ
+    // Logic làm lại bài thi
+    
+    // 1. Tăng biến đếm để ép buộc React vẽ lại Component ExamTaker mới tinh (xóa sạch state cũ)
+    setRetryCount(prev => prev + 1);
+    
+    // 2. Xóa dữ liệu cũ
     setStudentAnswers(null);
     setReviewResult(null);
 
-    // 2. Kiểm tra: Nếu là thi thật (có Link) -> Reload trang
+    // 3. Nếu là thi thật (có Link) -> Reload trang cho chắc chắn
     const params = new URLSearchParams(window.location.search);
     if (params.get('examId')) {
       window.location.reload();
       return;
     }
 
-    // 3. Nếu đang ở Dashboard (có tài khoản) -> Chuyển ngay sang màn hình thi (STUDENT_EXAM)
-    // Thay vì về Dashboard như trước
+    // 4. Nếu đang ở trong App (Dashboard/Login) -> Chuyển sang màn hình thi
+    // Chuyển về Dashboard trước 1 tích tắc để đảm bảo state reset, sau đó vào Exam
     if (studentAccount) {
          setAppState(AppState.STUDENT_EXAM);
     } else {
+         // Nếu chưa login (Khách) -> Về Login
          setAppState(AppState.STUDENT_LOGIN);
     }
   };
@@ -223,9 +222,9 @@ function App() {
                  <GraduationCap className="w-10 h-10" />
                  <h1 className="text-3xl font-bold tracking-tight">ExamPro</h1>
               </div>
-              <h2 className="text-4xl font-extrabold mb-4 leading-tight">Nền Tảng Kiểm Tra Trực Tuyến 2025</h2>
+              <h2 className="text-4xl font-extrabold mb-4 leading-tight">Nền Tảng Kiểm Tra Trực Tuyến</h2>
               <p className="text-blue-100 text-lg">
-                Chuẩn cấu trúc Bộ GD&ĐT. Tự động hóa tạo đề và chấm điểm.
+                 Cố gắng hôm nay, gặt hái thành công tương lai
               </p>
             </div>
             <div className="text-sm text-blue-200 mt-8">
@@ -358,6 +357,8 @@ function App() {
       
       {appState === AppState.STUDENT_EXAM && currentExam && (
         <ExamTaker
+          // Key thay đổi sẽ buộc React hủy component cũ và tạo mới -> Reset đồng hồ và câu trả lời
+          key={`${currentExam.id}-${retryCount}`} 
           exam={currentExam}
           studentInfo={studentInfo}
           onSubmit={handleExamSubmit}
@@ -370,7 +371,7 @@ function App() {
           exam={currentExam}
           answers={studentAnswers}
           studentInfo={studentInfo}
-          timeSpent={reviewResult?.timeSpent || (currentExam.durationMinutes * 60)} // Use stored time if reviewing
+          timeSpent={reviewResult?.timeSpent || (currentExam.durationMinutes * 60)}
           onRetry={handleRetry}
           onBack={handleGoHome}
           isHistoryMode={appState === AppState.STUDENT_REVIEW}
