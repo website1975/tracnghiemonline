@@ -1,10 +1,10 @@
 
 import React, { useState, useEffect } from 'react';
-import { Exam, PartType } from '../types';
+import { Exam, PartType, ExamType } from '../types';
 import { parseExamFromContent } from '../services/geminiService';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, Save, Trash, Plus, Copy, ImagePlus } from 'lucide-react';
+import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, Save, Trash, Plus, Copy, ImagePlus, CalendarClock } from 'lucide-react';
 
 interface ExamCreatorProps {
   onExamCreated: (exam: Exam) => Promise<void> | void;
@@ -180,6 +180,16 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
     setParsedExam(updatedExam);
   };
 
+  // Format Date for Input
+  const formatDatetimeLocal = (timestamp?: number) => {
+    if (!timestamp) return "";
+    const date = new Date(timestamp);
+    // Local ISO string hack
+    const tzOffset = date.getTimezoneOffset() * 60000;
+    const localISOTime = (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 16);
+    return localISOTime;
+  };
+
   // --- Render ---
 
   if (isReviewMode && parsedExam) {
@@ -273,6 +283,7 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
 
         {/* Exam Metadata & Scoring Config */}
         <div className="bg-white p-6 rounded-xl border space-y-4">
+           {/* Top Row: Basic Info */}
            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên đề thi</label>
@@ -302,9 +313,49 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                  />
               </div>
            </div>
+           
+           {/* Middle Row: Scheduling & Type */}
+           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-purple-50 p-4 rounded-lg border border-purple-100">
+                <div>
+                    <label className="block text-sm font-bold text-purple-800 mb-1">Loại đề thi</label>
+                    <select 
+                        value={parsedExam.type || ExamType.PRACTICE}
+                        onChange={(e) => {
+                            const newType = e.target.value as ExamType;
+                            setParsedExam({
+                                ...parsedExam, 
+                                type: newType,
+                                // Nếu chuyển sang Practice thì xóa lịch, nếu Test thì set default
+                                scheduledAt: newType === ExamType.PRACTICE ? undefined : (parsedExam.scheduledAt || Date.now() + 3600000) 
+                            });
+                        }}
+                        className="w-full p-2 border rounded text-sm bg-white"
+                    >
+                        <option value={ExamType.PRACTICE}>Luyện tập (Tự do)</option>
+                        <option value={ExamType.TEST}>Bài Kiểm Tra (Hẹn giờ)</option>
+                    </select>
+                </div>
+                {parsedExam.type === ExamType.TEST && (
+                    <div>
+                        <label className="block text-sm font-bold text-purple-800 mb-1 flex items-center gap-1">
+                            <CalendarClock className="w-4 h-4" /> Thời gian bắt đầu
+                        </label>
+                        <input 
+                            type="datetime-local"
+                            value={formatDatetimeLocal(parsedExam.scheduledAt)}
+                            onChange={(e) => {
+                                const time = new Date(e.target.value).getTime();
+                                setParsedExam({...parsedExam, scheduledAt: time});
+                            }}
+                            className="w-full p-2 border rounded text-sm bg-white"
+                        />
+                        <p className="text-xs text-purple-600 mt-1">Học sinh chỉ thấy nút "Vào thi" sau giờ này.</p>
+                    </div>
+                )}
+           </div>
 
-           {/* Score Config */}
-           <div className="pt-4 border-t grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
+           {/* Bottom Row: Score Config */}
+           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 bg-gray-50 p-4 rounded-lg">
                 <div>
                     <label className="block text-xs font-bold text-gray-600 mb-1">Điểm câu Phần 1 (TN)</label>
                     <input 
@@ -666,6 +717,7 @@ const DEMO_EXAM: Exam = {
   subject: "Toán học",
   durationMinutes: 45,
   createdAt: Date.now(),
+  type: ExamType.PRACTICE,
   scoreConfig: { part1PerQuestion: 0.25, part2MaxScore: 1.0, part3PerQuestion: 0.5 },
   part1: [
     {
