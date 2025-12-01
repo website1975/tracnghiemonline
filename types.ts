@@ -5,6 +5,11 @@ export enum PartType {
   SHORT_ANSWER = 'PART_3',
 }
 
+export enum ExamType {
+  PRACTICE = 'PRACTICE', // Làm lúc nào cũng được
+  TEST = 'TEST',         // Có hẹn giờ
+}
+
 // Part 1: Multiple Choice (4 options, 1 correct)
 export interface QuestionPart1 {
   id: string;
@@ -48,6 +53,8 @@ export interface Exam {
   title: string;
   subject: string;
   durationMinutes: number;
+  type?: ExamType;         // NEW: Loại đề thi
+  scheduledAt?: number;    // NEW: Thời gian bắt đầu (Timestamp)
   scoreConfig?: ExamScoreConfig; // Optional for backward compatibility
   part1: QuestionPart1[];
   part2: QuestionPart2[];
