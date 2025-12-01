@@ -4,7 +4,7 @@ import { Exam, PartType, ExamType } from '../types';
 import { parseExamFromContent } from '../services/geminiService';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, Save, Trash, Plus, Copy, ImagePlus, CalendarClock } from 'lucide-react';
+import { Upload, Loader2, PlayCircle, Image as ImageIcon, FileType, Info, Save, Trash, Plus, Copy, ImagePlus, CalendarClock, Lock } from 'lucide-react';
 
 interface ExamCreatorProps {
   onExamCreated: (exam: Exam) => Promise<void> | void;
@@ -184,7 +184,6 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
   const formatDatetimeLocal = (timestamp?: number) => {
     if (!timestamp) return "";
     const date = new Date(timestamp);
-    // Local ISO string hack
     const tzOffset = date.getTimezoneOffset() * 60000;
     const localISOTime = (new Date(date.getTime() - tzOffset)).toISOString().slice(0, 16);
     return localISOTime;
@@ -234,7 +233,7 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
           </div>
         </div>
         
-        {/* Image Manager Panel (Floating Fixed) */}
+        {/* Image Manager Panel */}
         {showImageManager && (
             <div className="fixed bottom-6 right-6 z-50 w-96 bg-white p-4 rounded-xl shadow-2xl border-2 border-orange-200 animate-in slide-in-from-bottom-4">
                 <div className="flex justify-between items-center mb-2">
@@ -283,7 +282,7 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
 
         {/* Exam Metadata & Scoring Config */}
         <div className="bg-white p-6 rounded-xl border space-y-4">
-           {/* Top Row: Basic Info */}
+           {/* Top Row */}
            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <div className="md:col-span-2">
                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên đề thi</label>
@@ -322,11 +321,15 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                         value={parsedExam.type || ExamType.PRACTICE}
                         onChange={(e) => {
                             const newType = e.target.value as ExamType;
+                            // Default times if switching to Test
+                            const defaultStart = Date.now() + 3600000;
+                            const defaultRelease = defaultStart + (parsedExam.durationMinutes * 60000);
+
                             setParsedExam({
                                 ...parsedExam, 
                                 type: newType,
-                                // Nếu chuyển sang Practice thì xóa lịch, nếu Test thì set default
-                                scheduledAt: newType === ExamType.PRACTICE ? undefined : (parsedExam.scheduledAt || Date.now() + 3600000) 
+                                scheduledAt: newType === ExamType.PRACTICE ? undefined : (parsedExam.scheduledAt || defaultStart),
+                                answerReleaseAt: newType === ExamType.PRACTICE ? undefined : (parsedExam.answerReleaseAt || defaultRelease)
                             });
                         }}
                         className="w-full p-2 border rounded text-sm bg-white"
@@ -336,20 +339,46 @@ export const ExamCreator: React.FC<ExamCreatorProps> = ({ onExamCreated, initial
                     </select>
                 </div>
                 {parsedExam.type === ExamType.TEST && (
-                    <div>
-                        <label className="block text-sm font-bold text-purple-800 mb-1 flex items-center gap-1">
-                            <CalendarClock className="w-4 h-4" /> Thời gian bắt đầu
-                        </label>
-                        <input 
-                            type="datetime-local"
-                            value={formatDatetimeLocal(parsedExam.scheduledAt)}
-                            onChange={(e) => {
-                                const time = new Date(e.target.value).getTime();
-                                setParsedExam({...parsedExam, scheduledAt: time});
-                            }}
-                            className="w-full p-2 border rounded text-sm bg-white"
-                        />
-                        <p className="text-xs text-purple-600 mt-1">Học sinh chỉ thấy nút "Vào thi" sau giờ này.</p>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold text-purple-800 mb-1 flex items-center gap-1">
+                                <CalendarClock className="w-3 h-3" /> Bắt đầu
+                            </label>
+                            <input 
+                                type="datetime-local"
+                                value={formatDatetimeLocal(parsedExam.scheduledAt)}
+                                onChange={(e) => {
+                                    const time = new Date(e.target.value).getTime();
+                                    // Auto update answer release time suggestion
+                                    const suggestedRelease = time + (parsedExam.durationMinutes * 60000);
+                                    setParsedExam({
+                                        ...parsedExam, 
+                                        scheduledAt: time,
+                                        answerReleaseAt: suggestedRelease 
+                                    });
+                                }}
+                                className="w-full p-2 border rounded text-xs bg-white"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-red-800 mb-1 flex items-center gap-1">
+                                <Lock className="w-3 h-3" /> Xem đáp án lúc
+                            </label>
+                            <input 
+                                type="datetime-local"
+                                value={formatDatetimeLocal(parsedExam.answerReleaseAt)}
+                                onChange={(e) => {
+                                    const time = new Date(e.target.value).getTime();
+                                    setParsedExam({...parsedExam, answerReleaseAt: time});
+                                }}
+                                className="w-full p-2 border rounded text-xs bg-white"
+                            />
+                        </div>
+                        <div className="col-span-2">
+                            <p className="text-[10px] text-purple-600 italic">
+                                *Đáp án chi tiết sẽ bị ẩn cho đến "Thời gian xem đáp án".
+                            </p>
+                        </div>
                     </div>
                 )}
            </div>
