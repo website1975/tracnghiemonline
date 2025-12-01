@@ -2,7 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/supabaseClient';
 import { StoredResult, StudentAccount, Exam, ExamType } from '../types';
-import { History, Eye, ChevronRight, LogOut, BookOpen, User, CalendarClock, Lock, Clock } from 'lucide-react';
+import { History, Eye, ChevronRight, LogOut, BookOpen, User, CalendarClock, Lock} from 'lucide-react';
 
 interface StudentDashboardProps {
   account: StudentAccount;
