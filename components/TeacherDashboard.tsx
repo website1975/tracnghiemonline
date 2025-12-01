@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Exam, StoredResult, StudentAccount, ExamType } from '../types';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { Plus, Trash2, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, Play,Edit2, Save, CheckCircle, XCircle, PenTool, History, GraduationCap, Calculator, CalendarClock, BookOpen, TrendingUp } from 'lucide-react';
+import { Plus, Trash2, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, Play, Edit2, Save, CheckCircle, XCircle, PenTool, History, GraduationCap, Calculator, CalendarClock, BookOpen, TrendingUp } from 'lucide-react';
 
 interface TeacherDashboardProps {
   onCreateExam: () => void;
