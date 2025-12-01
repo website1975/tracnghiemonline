@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type, Schema } from "@google/genai";
-import { Exam } from "../types";
+import { Exam, ExamType } from "../types";
 
 const examSchema: Schema = {
   type: Type.OBJECT,
@@ -143,6 +143,7 @@ export const parseExamFromContent = async (
       id: crypto.randomUUID(),
       createdAt: Date.now(),
       durationMinutes: data.durationMinutes || 45,
+      type: ExamType.PRACTICE, // Default Type
       // Default standard scores
       scoreConfig: {
         part1PerQuestion: 0.25,
