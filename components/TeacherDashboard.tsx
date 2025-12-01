@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo } from 'react';
 import { Exam, StoredResult, StudentAccount, ExamType } from '../types';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, ExternalLink, Key, Play, Lock, Edit2, Save, CheckCircle, XCircle, PenTool, History, GraduationCap, Calculator, CalendarClock, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Link as LinkIcon, FileText, Users, Eye, ChevronRight, X, Copy, QrCode, CloudLightning, Database, Settings, Key, Play, Lock, Edit2, Save, CheckCircle, XCircle, PenTool, History, GraduationCap, Calculator, CalendarClock, BookOpen, TrendingUp, Calendar } from 'lucide-react';
 
 interface TeacherDashboardProps {
   onCreateExam: () => void;
@@ -32,6 +33,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
 
   // View Student Answer Modal
   const [viewingResult, setViewingResult] = useState<{result: StoredResult, exam: Exam} | null>(null);
+
+  // View Student Profile (Stats) State
+  const [viewingStudentProfile, setViewingStudentProfile] = useState<StudentAccount | null>(null);
+  const [studentProfileHistory, setStudentProfileHistory] = useState<StoredResult[]>([]);
 
   // Edit Score State
   const [editingResultId, setEditingResultId] = useState<string | null>(null);
@@ -81,6 +86,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
     }
   };
 
+  const handleViewStudentProfile = async (student: StudentAccount) => {
+    setViewingStudentProfile(student);
+    // Fetch history
+    const history = await db.getStudentHistory(student.id, student.username);
+    setStudentProfileHistory(history);
+  };
+
   const handleOpenShare = (exam: Exam) => {
     const baseUrl = window.location.href.split('?')[0];
     const url = `${baseUrl}?examId=${exam.id}`;
@@ -110,6 +122,9 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         if (success) {
             // Cập nhật state local
             setRawResults(prev => prev.filter(r => r.id !== resultId));
+            // Cập nhật profile history nếu đang xem
+            setStudentProfileHistory(prev => prev.filter(r => r.id !== resultId));
+
             // Nếu đang xem chi tiết thì đóng lại
             if (viewingResult?.result.id === resultId) {
                 setViewingResult(null);
@@ -199,13 +214,23 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
     window.location.reload();
   };
 
+  // Stats calculation for Student Profile
+  const studentStats = useMemo(() => {
+    if (studentProfileHistory.length === 0) return { avg: 0, count: 0 };
+    const total = studentProfileHistory.reduce((sum, r) => sum + r.result.score, 0);
+    return {
+        avg: total / studentProfileHistory.length,
+        count: studentProfileHistory.length
+    };
+  }, [studentProfileHistory]);
+
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative">
       <header className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-blue-700">Trang Giáo Viên</h1>
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm">v7.1 (Delete Fix)</span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm">v7.2 (Analytics)</span>
           </div>
           <div className="flex gap-3">
              <button 
@@ -358,7 +383,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                   &larr; Quay lại danh sách
                 </button>
                 <div className="bg-white rounded-xl border overflow-hidden">
-                   {/* ... Table Header ... */}
                    <div className="p-4 bg-gray-50 border-b flex justify-between items-center">
                     <h3 className="font-bold text-gray-700">
                        {exams.find(e => e.id === selectedExamId)?.title || 'Đề thi đã xóa'}
@@ -470,7 +494,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                 </div>
               </div>
             ) : (
-               // ... List of exams for results ...
               <div className="grid gap-4">
                  <p className="text-gray-500 mb-2">Chọn một đề thi để xem danh sách điểm:</p>
                  {exams.map(exam => (
@@ -491,7 +514,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
           </div>
         )}
 
-        {/* ... (STUDENT MANAGEMENT TAB - Giữ nguyên) ... */}
+        {/* --- STUDENT MANAGEMENT TAB --- */}
         {activeTab === 'students' && (
             <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-gray-800">Danh sách Học sinh đã đăng ký</h2>
@@ -517,10 +540,18 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                                             <td className="p-4 font-mono text-blue-600">{s.username}</td>
                                             <td className="p-4 text-gray-600">{s.class_name || '-'}</td>
                                             <td className="p-4 text-gray-400 font-mono">{s.password}</td>
-                                            <td className="p-4">
+                                            <td className="p-4 flex gap-2">
+                                                <button 
+                                                    onClick={() => handleViewStudentProfile(s)}
+                                                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg border border-blue-100 flex items-center gap-1 text-xs font-bold"
+                                                    title="Xem hồ sơ & lịch sử"
+                                                >
+                                                    <Eye className="w-4 h-4" /> Hồ sơ
+                                                </button>
                                                 <button 
                                                     onClick={() => handleDeleteStudent(s.id)}
                                                     className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-red-100 flex items-center gap-1 text-xs font-bold"
+                                                    title="Xóa học sinh"
                                                 >
                                                     <Trash2 className="w-4 h-4" /> Xóa
                                                 </button>
@@ -536,6 +567,105 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         )}
 
       </main>
+
+      {/* MODAL: STUDENT PROFILE & STATS */}
+      {viewingStudentProfile && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in zoom-in-95">
+             <div className="p-5 border-b flex justify-between items-center bg-gray-50 rounded-t-2xl">
+                <div>
+                   <h2 className="text-xl font-bold text-gray-900">Hồ sơ Học sinh: {viewingStudentProfile.full_name}</h2>
+                   <p className="text-sm text-gray-500">Mã SV: {viewingStudentProfile.username} - Lớp: {viewingStudentProfile.class_name || 'N/A'}</p>
+                </div>
+                <button onClick={() => setViewingStudentProfile(null)} className="p-2 hover:bg-gray-200 rounded-full">
+                  <X className="w-6 h-6 text-gray-500" />
+                </button>
+             </div>
+             
+             <div className="p-6 flex-1 overflow-y-auto space-y-6">
+                {/* Stats Cards */}
+                <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center gap-4">
+                        <div className="p-3 bg-blue-100 rounded-full text-blue-600">
+                            <TrendingUp className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500">Điểm trung bình</p>
+                            <p className="text-2xl font-bold text-blue-800">
+                                {studentStats.avg.toFixed(2)}
+                            </p>
+                        </div>
+                    </div>
+                    <div className="bg-indigo-50 p-4 rounded-xl border border-indigo-100 flex items-center gap-4">
+                        <div className="p-3 bg-indigo-100 rounded-full text-indigo-600">
+                            <FileText className="w-6 h-6" />
+                        </div>
+                        <div>
+                            <p className="text-sm text-gray-500">Tổng số bài thi</p>
+                            <p className="text-2xl font-bold text-indigo-800">
+                                {studentStats.count}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* History Table */}
+                <div>
+                    <h3 className="font-bold text-gray-800 mb-3 flex items-center gap-2">
+                        <History className="w-5 h-5 text-gray-600" /> Lịch sử chi tiết
+                    </h3>
+                    <div className="bg-white rounded-xl border overflow-hidden">
+                        {studentProfileHistory.length === 0 ? (
+                            <div className="p-6 text-center text-gray-500 italic">Chưa có bài thi nào.</div>
+                        ) : (
+                            <table className="w-full text-sm text-left">
+                                <thead className="bg-gray-50 text-gray-500 font-medium">
+                                    <tr>
+                                        <th className="p-3">Đề thi</th>
+                                        <th className="p-3">Điểm số</th>
+                                        <th className="p-3">Ngày thi</th>
+                                        <th className="p-3">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y">
+                                    {studentProfileHistory.map((r) => (
+                                        <tr key={r.id}>
+                                            <td className="p-3 font-medium text-gray-900">{r.examTitle}</td>
+                                            <td className="p-3">
+                                                <span className={`px-2 py-1 rounded font-bold ${r.result.score >= 5 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                    {r.result.score.toFixed(2)}
+                                                </span>
+                                            </td>
+                                            <td className="p-3 text-gray-500">{new Date(r.completedAt).toLocaleString()}</td>
+                                            <td className="p-3">
+                                                 {r.answers ? (
+                                                    <button 
+                                                      onClick={() => handleViewStudentDetail(r)}
+                                                      className="text-blue-600 hover:underline flex items-center gap-1"
+                                                    >
+                                                       <Eye className="w-3 h-3" /> Xem
+                                                    </button>
+                                                 ) : '-'}
+                                                 {r.id && (
+                                                    <button 
+                                                        onClick={() => handleDeleteResult(r.id!)}
+                                                        className="text-red-600 hover:underline ml-3 flex inline-flex items-center gap-1"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" /> Xóa
+                                                    </button>
+                                                 )}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                </div>
+             </div>
+          </div>
+        </div>
+      )}
 
       {/* VIEW EXAM CONTENT MODAL */}
       {viewingExam && (
@@ -659,7 +789,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                      <p className="text-sm text-gray-500">Điểm số: <span className="font-bold text-blue-600">{viewingResult.result.result.score.toFixed(2)}</span></p>
                   </div>
                   <div className="flex items-center gap-2">
-                      {/* ADDED: DELETE BUTTON INSIDE MODAL */}
+                      {/* DELETE BUTTON INSIDE MODAL */}
                       {viewingResult.result.id && (
                         <button 
                             onClick={() => handleDeleteResult(viewingResult.result.id!)}
