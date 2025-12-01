@@ -4,7 +4,7 @@ import { Exam, GradingResult, StudentAnswers, StudentInfo, ExamType } from '../t
 import { calculateScore } from '../utils/grading';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { CheckCircle, XCircle, RotateCcw, Play, Lock } from 'lucide-react';
+import { CheckCircle, XCircle, RotateCcw, Lock } from 'lucide-react';
 
 interface ResultViewProps {
   exam: Exam;
@@ -13,7 +13,7 @@ interface ResultViewProps {
   timeSpent: number; // in seconds
   onRetry: () => void;
   onBack: () => void;
-  isHistoryMode?: boolean;
+  isHistoryMode?: boolean; // New prop to indicate if viewing from history
 }
 
 export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentInfo, timeSpent, onRetry, onBack, isHistoryMode = false }) => {
@@ -73,7 +73,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentIn
         {/* Score Card */}
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center border-t-8 border-blue-600">
           <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            {isHistoryMode ? 'Xem lại bài thi' : 'Kết quả làm bài'}
+            {isHistoryMode ? 'Xem lại bài thi (Lịch sử)' : 'Kết quả làm bài'}
           </h1>
           <p className="text-gray-500 mb-6">{exam.title} - {studentInfo.name}</p>
           
