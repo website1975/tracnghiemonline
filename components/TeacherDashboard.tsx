@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from 'react';
 import { Exam, StoredResult, StudentAccount, ExamType } from '../types';
 import { db } from '../services/supabaseClient';
@@ -46,6 +45,8 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
     geminiKey: localStorage.getItem('GEMINI_API_KEY') || '',
     adminPassword: localStorage.getItem('TEACHER_PASSWORD') || '123456'
   });
+
+  const isBlobUrl = shareData?.url.startsWith('blob:') || false;
 
   useEffect(() => {
     refreshData();
@@ -109,6 +110,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         if (success) {
             // Cập nhật state local
             setRawResults(prev => prev.filter(r => r.id !== resultId));
+            // Nếu đang xem chi tiết thì đóng lại
+            if (viewingResult?.result.id === resultId) {
+                setViewingResult(null);
+            }
         } else {
             alert("Lỗi khi xóa kết quả. Vui lòng thử lại.");
         }
@@ -194,15 +199,13 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
     window.location.reload();
   };
 
-  const isBlobUrl = window.location.href.startsWith('blob:');
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col relative">
       <header className="bg-white border-b shadow-sm sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h1 className="text-xl font-bold text-blue-700">Trang Giáo Viên</h1>
-            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm animate-pulse">v6.0 (Scheduling)</span>
+            <span className="px-3 py-1 bg-purple-100 text-purple-700 text-xs rounded-full font-bold shadow-sm">v7.1 (Delete Fix)</span>
           </div>
           <div className="flex gap-3">
              <button 
@@ -342,7 +345,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
           </div>
         )}
 
-        {/* ... (Giữ nguyên các Tab khác: Results, Students) ... */}
         {/* --- RESULT TAB --- */}
         {activeTab === 'results' && (
           <div className="space-y-6">
@@ -385,7 +387,6 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                             <tr key={idx} className="hover:bg-gray-50">
                               <td className="p-4 font-medium text-gray-900">
                                 {r.studentInfo.name}
-                                {/* Hiển thị số lần thi nếu > 1 */}
                                 {(r as any).attemptCount > 1 && (
                                     <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded-full font-bold flex inline-flex items-center gap-1">
                                         <History className="w-3 h-3" /> Thi {(r as any).attemptCount} lần
@@ -453,10 +454,10 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                                 {r.id && (
                                     <button 
                                         onClick={() => handleDeleteResult(r.id!)}
-                                        className="p-2 text-red-500 hover:bg-red-50 rounded-lg hover:shadow-sm border border-transparent hover:border-red-100 transition-all"
+                                        className="flex items-center gap-1 px-3 py-1.5 text-red-600 hover:bg-red-50 rounded-lg border border-red-200 font-medium text-xs shadow-sm hover:shadow-md transition-all"
                                         title="Xóa kết quả này"
                                     >
-                                        <Trash2 className="w-4 h-4" />
+                                        <Trash2 className="w-4 h-4" /> Xóa
                                     </button>
                                 )}
                               </td>
@@ -490,7 +491,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
           </div>
         )}
 
-        {/* --- STUDENT MANAGEMENT TAB --- */}
+        {/* ... (STUDENT MANAGEMENT TAB - Giữ nguyên) ... */}
         {activeTab === 'students' && (
             <div className="space-y-6">
                 <h2 className="text-2xl font-bold text-gray-800">Danh sách Học sinh đã đăng ký</h2>
@@ -536,10 +537,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
 
       </main>
 
-      {/* ... (Giữ nguyên Modal Deploy Guide, Share Modal, View Full Exam Modal...) */}
-      {/* (Lưu ý: Các modal này đã có sẵn trong file gốc, chỉ cần đảm bảo ViewFullExamModal hiển thị đúng scheduledAt nếu cần) */}
-      
-      {/* VIEW FULL EXAM MODAL */}
+      {/* VIEW EXAM CONTENT MODAL */}
       {viewingExam && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -651,7 +649,7 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
         </div>
       )}
 
-      {/* VIEW RESULT MODAL (Giữ nguyên) */}
+      {/* VIEW RESULT MODAL */}
       {viewingResult && (
          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-2xl shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col">
@@ -660,9 +658,20 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
                      <h2 className="text-xl font-bold text-gray-900">Chi tiết bài làm: {viewingResult.result.studentInfo.name}</h2>
                      <p className="text-sm text-gray-500">Điểm số: <span className="font-bold text-blue-600">{viewingResult.result.result.score.toFixed(2)}</span></p>
                   </div>
-                  <button onClick={() => setViewingResult(null)} className="p-2 hover:bg-gray-200 rounded-full">
-                     <X className="w-6 h-6 text-gray-500" />
-                  </button>
+                  <div className="flex items-center gap-2">
+                      {/* ADDED: DELETE BUTTON INSIDE MODAL */}
+                      {viewingResult.result.id && (
+                        <button 
+                            onClick={() => handleDeleteResult(viewingResult.result.id!)}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg border border-red-200 flex items-center gap-1 text-sm font-bold mr-2"
+                        >
+                            <Trash2 className="w-4 h-4" /> Xóa bài này
+                        </button>
+                      )}
+                      <button onClick={() => setViewingResult(null)} className="p-2 hover:bg-gray-200 rounded-full">
+                        <X className="w-6 h-6 text-gray-500" />
+                      </button>
+                  </div>
                </div>
                <div className="flex-1 overflow-y-auto p-6 space-y-8">
                   {/* ... (Code hiển thị bài làm chi tiết của học sinh - Giữ nguyên) ... */}
@@ -787,8 +796,211 @@ export const TeacherDashboard: React.FC<TeacherDashboardProps> = ({ onCreateExam
          </div>
       )}
 
-      {/* Share Modal & Deploy Guide Modal is kept from previous version logic */}
+      {/* SHARE MODAL & DEPLOY GUIDE */}
+      {showDeployGuide && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full p-6 animate-in fade-in zoom-in-95 overflow-y-auto max-h-[90vh]">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-bold text-xl text-gray-800 flex items-center gap-2">
+                <Database className="w-6 h-6 text-green-600" /> Cấu hình Hệ thống
+              </h3>
+              <button onClick={() => setShowDeployGuide(false)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
 
+            <div className="space-y-6">
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-gray-700">Supabase Project URL</label>
+                <input 
+                  type="text" 
+                  className="w-full p-3 border rounded-lg bg-gray-50 font-mono text-sm"
+                  value={dbConfig.url}
+                  onChange={(e) => setDbConfig({...dbConfig, url: e.target.value})}
+                  placeholder="https://xyz.supabase.co"
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-gray-700">Supabase Anon Key</label>
+                <input 
+                  type="text" 
+                  className="w-full p-3 border rounded-lg bg-gray-50 font-mono text-sm"
+                  value={dbConfig.key}
+                  onChange={(e) => setDbConfig({...dbConfig, key: e.target.value})}
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-gray-700">Google Gemini API Key</label>
+                <input 
+                  type="password" 
+                  className="w-full p-3 border rounded-lg bg-gray-50 font-mono text-sm"
+                  value={dbConfig.geminiKey}
+                  onChange={(e) => setDbConfig({...dbConfig, geminiKey: e.target.value})}
+                  placeholder="AIzaSy..."
+                />
+                <p className="text-xs text-gray-500">Key này dùng để AI tạo đề thi.</p>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-sm font-bold text-gray-700">Mật khẩu Quản trị Giáo viên</label>
+                <input 
+                  type="text" 
+                  className="w-full p-3 border rounded-lg bg-gray-50 font-mono text-sm text-red-600 font-bold"
+                  value={dbConfig.adminPassword}
+                  onChange={(e) => setDbConfig({...dbConfig, adminPassword: e.target.value})}
+                  placeholder="123456"
+                />
+                <p className="text-xs text-gray-500">Dùng để đăng nhập vào trang này.</p>
+              </div>
+
+              <div className="pt-4 border-t flex justify-end gap-3">
+                <button onClick={() => setShowDeployGuide(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg">
+                  Hủy
+                </button>
+                <button onClick={saveConfig} className="px-6 py-2 bg-green-600 text-white font-bold rounded-lg hover:bg-green-700">
+                  Lưu Cấu hình
+                </button>
+              </div>
+
+              {/* SQL Guide Section */}
+              <div className="mt-8 pt-6 border-t">
+                <h4 className="font-bold text-gray-800 mb-2">Mã SQL khởi tạo Database (Chạy 1 lần)</h4>
+                <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto relative group">
+                  <pre className="text-xs text-green-400 font-mono">
+{`-- 1. TẠO BẢNG ĐỀ THI
+create table exams (
+  id text primary key,
+  title text,
+  subject text,
+  duration_minutes int,
+  created_at timestamptz default now(),
+  content jsonb
+);
+
+-- 2. TẠO BẢNG HỌC SINH
+create table if not exists students (
+  id uuid default gen_random_uuid() primary key,
+  full_name text not null,
+  class_name text,
+  username text not null unique,
+  password text not null,
+  created_at timestamptz default now()
+);
+
+-- 3. TẠO BẢNG KẾT QUẢ
+create table results (
+  id uuid default gen_random_uuid() primary key,
+  exam_id text, -- Bỏ references exams(id) để tránh lỗi
+  student_name text,
+  student_id text,
+  student_account_id uuid references students(id),
+  score float,
+  details jsonb,
+  time_spent int,
+  answers jsonb, -- Lưu bài làm chi tiết
+  created_at timestamptz default now()
+);
+
+-- 4. BẬT ROW LEVEL SECURITY (Cho phép truy cập công khai)
+alter table exams enable row level security;
+create policy "Public Exams" on exams for all using (true);
+
+alter table students enable row level security;
+create policy "Public Students" on students for all using (true);
+
+alter table results enable row level security;
+create policy "Public Results" on results for all using (true);
+
+-- 5. CẤU HÌNH STORAGE (Cho phép Upload ảnh)
+insert into storage.buckets (id, name, public) 
+values ('exam-images', 'exam-images', true) 
+on conflict (id) do nothing;
+
+drop policy if exists "Public Upload" on storage.objects;
+drop policy if exists "Public Select" on storage.objects;
+
+create policy "Public Upload" on storage.objects 
+for insert with check ( bucket_id = 'exam-images' );
+
+create policy "Public Select" on storage.objects 
+for select using ( bucket_id = 'exam-images' );
+`}
+                  </pre>
+                  <button 
+                    onClick={() => navigator.clipboard.writeText(`-- SQL CODE COPIED`)} // (Simplified copy for UI)
+                    className="absolute top-2 right-2 bg-white/10 text-white text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white/20"
+                  >
+                    Copy SQL
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* SHARE MODAL */}
+      {shareData && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 animate-in fade-in zoom-in-95">
+             <div className="flex justify-between items-center mb-4">
+                <h3 className="font-bold text-lg text-gray-900">Chia sẻ đề thi</h3>
+                <button onClick={() => setShareData(null)} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-5 h-5" />
+                </button>
+             </div>
+             
+             <div className="space-y-4">
+                <div className="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                   <p className="font-bold text-blue-800 text-sm mb-1">Môn thi: {shareData.title}</p>
+                   <p className="text-xs text-blue-600">ID: {shareData.id}</p>
+                </div>
+
+                {isBlobUrl && (
+                    <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 flex gap-2 items-start">
+                        <CloudLightning className="w-5 h-5 text-yellow-600 shrink-0 mt-0.5" />
+                        <p className="text-xs text-yellow-800">
+                            <strong>Lưu ý:</strong> Bạn đang chạy chế độ Test (Blob URL). 
+                            Link này chỉ hoạt động trên máy của bạn. 
+                            Hãy Deploy lên Vercel để chia sẻ cho học sinh khác máy.
+                        </p>
+                    </div>
+                )}
+
+                <div>
+                   <label className="block text-sm font-medium text-gray-700 mb-2">Đường dẫn làm bài:</label>
+                   <div className="flex gap-2">
+                      <input 
+                        readOnly
+                        value={shareData.url}
+                        className="flex-1 p-2 border rounded-lg bg-gray-50 text-sm font-mono text-gray-600"
+                      />
+                      <button 
+                        onClick={handleCopyLink}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-3 rounded-lg transition-colors"
+                      >
+                         <Copy className="w-4 h-4" />
+                      </button>
+                   </div>
+                </div>
+
+                <div className="flex justify-center py-4">
+                    <div className="bg-white p-2 rounded-lg border shadow-sm">
+                        <img 
+                            src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(shareData.url)}`} 
+                            alt="QR Code" 
+                            className="w-32 h-32"
+                        />
+                    </div>
+                </div>
+                <p className="text-center text-xs text-gray-500">Quét mã để làm bài trên điện thoại</p>
+             </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
