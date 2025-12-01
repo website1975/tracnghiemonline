@@ -1,9 +1,10 @@
+
 import React, { useEffect, useRef } from 'react';
-import { Exam, GradingResult, StudentAnswers, StudentInfo } from '../types';
+import { Exam, GradingResult, StudentAnswers, StudentInfo, ExamType } from '../types';
 import { calculateScore } from '../utils/grading';
 import { db } from '../services/supabaseClient';
 import { MathRenderer } from './MathRenderer';
-import { CheckCircle, XCircle, RotateCcw, Play } from 'lucide-react';
+import { CheckCircle, XCircle, RotateCcw, Play, Lock } from 'lucide-react';
 
 interface ResultViewProps {
   exam: Exam;
@@ -58,6 +59,12 @@ export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentIn
       </div>
     );
   };
+
+  // CHECK LOCK STATUS
+  // Nếu là TEST và chưa đến giờ mở đáp án -> Lock
+  const isAnswerLocked = exam.type === ExamType.TEST && 
+                         exam.answerReleaseAt && 
+                         Date.now() < exam.answerReleaseAt;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4">
@@ -122,114 +129,132 @@ export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentIn
         </div>
 
         {/* Detailed Review */}
-        <div className="space-y-6">
-          <h3 className="text-xl font-bold text-gray-800 px-2">Chi tiết đáp án & Giải thích</h3>
-          
-          {/* Part 1 Review */}
-          <div className="bg-white rounded-xl shadow-sm border p-6">
-             <h4 className="font-bold text-blue-600 mb-4 border-b pb-2">Phần 1: Trắc nghiệm</h4>
-             <div className="space-y-8">
-               {exam.part1.map((q, idx) => (
-                 <div key={q.id}>
-                    <div className="flex gap-2 mb-2">
-                       <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white
-                          ${answers.part1[q.id] === q.correctOption ? 'bg-green-500' : 'bg-red-500'}`}>
-                          {idx + 1}
-                       </span>
-                       <div className="font-medium text-gray-900"><MathRenderer text={q.text} /></div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-8 mb-3">
-                       {q.options.map((opt, oIdx) => renderOptionStatus(q.id, oIdx, q.correctOption))}
-                    </div>
-                    {q.explanation && (
-                      <div className="ml-8 text-sm bg-yellow-50 p-3 rounded text-yellow-800">
-                         <strong>Giải thích:</strong> <MathRenderer text={q.explanation} inline />
-                      </div>
-                    )}
-                 </div>
-               ))}
-             </div>
-          </div>
-
-          {/* Part 2 Review */}
-          <div className="bg-white rounded-xl shadow-sm border p-6">
-             <h4 className="font-bold text-indigo-600 mb-4 border-b pb-2">Phần 2: Đúng/Sai</h4>
-             <div className="space-y-8">
-                {exam.part2.map((q, idx) => (
-                   <div key={q.id} className="bg-gray-50/50 p-4 rounded-lg">
-                      <div className="flex gap-2 mb-2">
-                        <span className="w-6 h-6 rounded bg-gray-600 flex items-center justify-center text-xs font-bold text-white">
+        {isAnswerLocked ? (
+            <div className="bg-orange-50 p-8 rounded-xl border border-orange-200 flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-bottom-4">
+                <div className="bg-orange-100 p-4 rounded-full mb-4">
+                    <Lock className="w-8 h-8 text-orange-600" />
+                </div>
+                <h3 className="text-xl font-bold text-orange-800 mb-2">Đáp án chi tiết chưa được mở</h3>
+                <p className="text-orange-700 max-w-md">
+                    Để đảm bảo công bằng, đáp án chi tiết và lời giải sẽ được công bố vào lúc:
+                </p>
+                <p className="text-lg font-bold text-orange-900 mt-2 bg-white/50 px-4 py-2 rounded-lg border border-orange-200">
+                    {new Date(exam.answerReleaseAt!).toLocaleString('vi-VN')}
+                </p>
+                <p className="text-sm text-orange-600 mt-4 italic">
+                    Vui lòng quay lại lịch sử làm bài sau thời gian trên để xem chi tiết.
+                </p>
+            </div>
+        ) : (
+            <div className="space-y-6">
+            <h3 className="text-xl font-bold text-gray-800 px-2">Chi tiết đáp án & Giải thích</h3>
+            
+            {/* Part 1 Review */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+                <h4 className="font-bold text-blue-600 mb-4 border-b pb-2">Phần 1: Trắc nghiệm</h4>
+                <div className="space-y-8">
+                {exam.part1.map((q, idx) => (
+                    <div key={q.id}>
+                        <div className="flex gap-2 mb-2">
+                        <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white
+                            ${answers.part1[q.id] === q.correctOption ? 'bg-green-500' : 'bg-red-500'}`}>
                             {idx + 1}
                         </span>
                         <div className="font-medium text-gray-900"><MathRenderer text={q.text} /></div>
-                      </div>
-                      <div className="ml-8 space-y-2">
-                         {q.subQuestions.map(sub => {
-                            const userCorrect = answers.part2[q.id]?.[sub.id] === sub.isCorrect;
-                            return (
-                               <div key={sub.id} className={`flex justify-between items-center p-2 rounded text-sm border 
-                                  ${userCorrect ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'}`}>
-                                  <span><MathRenderer text={sub.text} inline /></span>
-                                  <div className="flex items-center gap-2">
-                                     <span className="text-xs text-gray-500">Đáp án: <strong className={sub.isCorrect ? 'text-green-600' : 'text-red-600'}>{sub.isCorrect ? 'Đúng' : 'Sai'}</strong></span>
-                                     {userCorrect ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
-                                  </div>
-                               </div>
-                            )
-                         })}
-                      </div>
-                      {q.explanation && (
-                        <div className="ml-8 mt-3 text-sm bg-yellow-50 p-3 rounded text-yellow-800">
-                           <strong>Giải thích:</strong> <MathRenderer text={q.explanation} inline />
                         </div>
-                      )}
-                   </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-8 mb-3">
+                        {q.options.map((opt, oIdx) => renderOptionStatus(q.id, oIdx, q.correctOption))}
+                        </div>
+                        {q.explanation && (
+                        <div className="ml-8 text-sm bg-yellow-50 p-3 rounded text-yellow-800">
+                            <strong>Giải thích:</strong> <MathRenderer text={q.explanation} inline />
+                        </div>
+                        )}
+                    </div>
                 ))}
-             </div>
-          </div>
+                </div>
+            </div>
 
-          {/* Part 3 Review */}
-          <div className="bg-white rounded-xl shadow-sm border p-6">
-             <h4 className="font-bold text-emerald-600 mb-4 border-b pb-2">Phần 3: Trả lời ngắn</h4>
-             <div className="space-y-6">
-                {exam.part3.map((q, idx) => {
-                   const userAns = (answers.part3[q.id] || "").trim();
-                   const isCorrect = userAns.toLowerCase() === q.correctAnswer.toLowerCase();
-                   return (
-                      <div key={q.id}>
-                         <div className="flex gap-2 mb-2">
-                            <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white
-                               ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
-                               {idx + 1}
+            {/* Part 2 Review */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+                <h4 className="font-bold text-indigo-600 mb-4 border-b pb-2">Phần 2: Đúng/Sai</h4>
+                <div className="space-y-8">
+                    {exam.part2.map((q, idx) => (
+                    <div key={q.id} className="bg-gray-50/50 p-4 rounded-lg">
+                        <div className="flex gap-2 mb-2">
+                            <span className="w-6 h-6 rounded bg-gray-600 flex items-center justify-center text-xs font-bold text-white">
+                                {idx + 1}
                             </span>
                             <div className="font-medium text-gray-900"><MathRenderer text={q.text} /></div>
-                         </div>
-                         <div className="ml-8 flex gap-4 items-center">
-                            <div className="flex-1">
-                               <p className="text-xs text-gray-500 mb-1">Câu trả lời của bạn</p>
-                               <div className={`p-2 border rounded ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                                  {userAns || <span className="text-gray-400 italic">Không trả lời</span>}
-                               </div>
+                        </div>
+                        <div className="ml-8 space-y-2">
+                            {q.subQuestions.map(sub => {
+                                const userCorrect = answers.part2[q.id]?.[sub.id] === sub.isCorrect;
+                                return (
+                                <div key={sub.id} className={`flex justify-between items-center p-2 rounded text-sm border 
+                                    ${userCorrect ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'}`}>
+                                    <span><MathRenderer text={sub.text} inline /></span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-gray-500">Đáp án: <strong className={sub.isCorrect ? 'text-green-600' : 'text-red-600'}>{sub.isCorrect ? 'Đúng' : 'Sai'}</strong></span>
+                                        {userCorrect ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
+                                    </div>
+                                </div>
+                                )
+                            })}
+                        </div>
+                        {q.explanation && (
+                            <div className="ml-8 mt-3 text-sm bg-yellow-50 p-3 rounded text-yellow-800">
+                            <strong>Giải thích:</strong> <MathRenderer text={q.explanation} inline />
                             </div>
-                            <div className="flex-1">
-                               <p className="text-xs text-gray-500 mb-1">Đáp án đúng</p>
-                               <div className="p-2 border border-green-200 bg-green-50 rounded font-bold text-green-900">
-                                  {q.correctAnswer}
-                               </div>
-                            </div>
-                         </div>
-                         {q.explanation && (
-                           <div className="ml-8 mt-2 text-sm bg-yellow-50 p-3 rounded text-yellow-800">
-                              <strong>Giải thích:</strong> <MathRenderer text={q.explanation} inline />
-                           </div>
-                         )}
-                      </div>
-                   );
-                })}
-             </div>
-          </div>
+                        )}
+                    </div>
+                    ))}
+                </div>
+            </div>
 
-        </div>
+            {/* Part 3 Review */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+                <h4 className="font-bold text-emerald-600 mb-4 border-b pb-2">Phần 3: Trả lời ngắn</h4>
+                <div className="space-y-6">
+                    {exam.part3.map((q, idx) => {
+                    const userAns = (answers.part3[q.id] || "").trim();
+                    const isCorrect = userAns.toLowerCase() === q.correctAnswer.toLowerCase();
+                    return (
+                        <div key={q.id}>
+                            <div className="flex gap-2 mb-2">
+                                <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white
+                                ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
+                                {idx + 1}
+                                </span>
+                                <div className="font-medium text-gray-900"><MathRenderer text={q.text} /></div>
+                            </div>
+                            <div className="ml-8 flex gap-4 items-center">
+                                <div className="flex-1">
+                                <p className="text-xs text-gray-500 mb-1">Câu trả lời của bạn</p>
+                                <div className={`p-2 border rounded ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                    {userAns || <span className="text-gray-400 italic">Không trả lời</span>}
+                                </div>
+                                </div>
+                                <div className="flex-1">
+                                <p className="text-xs text-gray-500 mb-1">Đáp án đúng</p>
+                                <div className="p-2 border border-green-200 bg-green-50 rounded font-bold text-green-900">
+                                    {q.correctAnswer}
+                                </div>
+                                </div>
+                            </div>
+                            {q.explanation && (
+                            <div className="ml-8 mt-2 text-sm bg-yellow-50 p-3 rounded text-yellow-800">
+                                <strong>Giải thích:</strong> <MathRenderer text={q.explanation} inline />
+                            </div>
+                            )}
+                        </div>
+                    );
+                    })}
+                </div>
+            </div>
+
+            </div>
+        )}
       </div>
     </div>
   );
