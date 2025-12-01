@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Exam, StudentAnswers, StudentInfo, PartType } from '../types';
+import { Exam, StudentAnswers, StudentInfo, PartType, ExamType } from '../types';
 import { MathRenderer } from './MathRenderer';
 import { Clock, CheckCircle2, AlertCircle, Save, ChevronRight, ChevronLeft } from 'lucide-react';
 
@@ -12,7 +12,29 @@ interface ExamTakerProps {
 }
 
 export const ExamTaker: React.FC<ExamTakerProps> = ({ exam, studentInfo, onSubmit, onExit }) => {
-  const [timeLeft, setTimeLeft] = useState(exam.durationMinutes * 60);
+  // --- LOGIC TÍNH THỜI GIAN (QUAN TRỌNG) ---
+  const calculateInitialTime = () => {
+    // 1. Nếu là bài Luyện tập (Tự do): Đếm đủ thời lượng
+    if (exam.type !== ExamType.TEST || !exam.scheduledAt) {
+        return exam.durationMinutes * 60;
+    }
+
+    // 2. Nếu là bài Kiểm tra (Hẹn giờ): Tính theo giờ kết thúc cứng (Hard Stop)
+    const now = Date.now();
+    const startTime = exam.scheduledAt;
+    const endTime = startTime + (exam.durationMinutes * 60 * 1000); // Giờ kết thúc (ms)
+    
+    // Số giây còn lại tính đến giờ kết thúc
+    const secondsRemaining = Math.floor((endTime - now) / 1000);
+
+    // Nếu đã quá giờ, trả về 0 (để kích hoạt nộp bài ngay)
+    if (secondsRemaining <= 0) return 0;
+
+    // Nếu chưa quá giờ, trả về số giây thực tế còn lại
+    return secondsRemaining;
+  };
+
+  const [timeLeft, setTimeLeft] = useState(calculateInitialTime());
   const [answers, setAnswers] = useState<StudentAnswers>({
     part1: {},
     part2: {},
@@ -25,8 +47,25 @@ export const ExamTaker: React.FC<ExamTakerProps> = ({ exam, studentInfo, onSubmi
   const p1Score = exam.scoreConfig?.part1PerQuestion ?? 0.25;
   const p3Score = exam.scoreConfig?.part3PerQuestion ?? 0.5;
 
+  const handleSubmit = useCallback(() => {
+    // Tính thời gian thực tế đã làm
+    // Lưu ý: Với bài kiểm tra vào muộn, timeSpent vẫn nên tính là (Tổng thời lượng - Thời gian còn lại trên đồng hồ)
+    // hoặc đơn giản là (Duration gốc - timeLeft hiện tại)
+    const timeSpent = (exam.durationMinutes * 60) - timeLeft;
+    // Đảm bảo không âm (trường hợp edge case)
+    const finalTime = timeSpent > 0 ? timeSpent : exam.durationMinutes * 60;
+    
+    onSubmit(answers, finalTime);
+  }, [answers, exam.durationMinutes, timeLeft, onSubmit]);
+
   // Timer
   useEffect(() => {
+    // Kiểm tra ngay khi vào: Nếu hết giờ thì nộp luôn
+    if (timeLeft <= 0) {
+        handleSubmit();
+        return;
+    }
+
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -38,8 +77,7 @@ export const ExamTaker: React.FC<ExamTakerProps> = ({ exam, studentInfo, onSubmi
       });
     }, 1000);
     return () => clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [handleSubmit]); // Thêm handleSubmit vào dep để đảm bảo closure mới nhất
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -64,11 +102,6 @@ export const ExamTaker: React.FC<ExamTakerProps> = ({ exam, studentInfo, onSubmi
   const handlePart3Change = (qId: string, val: string) => {
     setAnswers(prev => ({ ...prev, part3: { ...prev.part3, [qId]: val } }));
   };
-
-  const handleSubmit = useCallback(() => {
-    const timeSpent = (exam.durationMinutes * 60) - timeLeft;
-    onSubmit(answers, timeSpent);
-  }, [answers, exam.durationMinutes, timeLeft, onSubmit]);
 
   const progress = () => {
     const totalQ = exam.part1.length + exam.part2.length * 4 + exam.part3.length;
