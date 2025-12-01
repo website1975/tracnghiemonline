@@ -1,261 +1,110 @@
 
-import React, { useEffect, useRef } from 'react';
-import { Exam, GradingResult, StudentAnswers, StudentInfo, ExamType } from '../types';
-import { calculateScore } from '../utils/grading';
-import { db } from '../services/supabaseClient';
-import { MathRenderer } from './MathRenderer';
-import { CheckCircle, XCircle, RotateCcw, Play, Lock } from 'lucide-react';
-
-interface ResultViewProps {
-  exam: Exam;
-  answers: StudentAnswers;
-  studentInfo: StudentInfo;
-  timeSpent: number; // in seconds
-  onRetry: () => void;
-  onBack: () => void;
-  isHistoryMode?: boolean;
+export enum PartType {
+  MULTIPLE_CHOICE = 'PART_1',
+  TRUE_FALSE = 'PART_2',
+  SHORT_ANSWER = 'PART_3',
 }
 
-export const ResultView: React.FC<ResultViewProps> = ({ exam, answers, studentInfo, timeSpent, onRetry, onBack, isHistoryMode = false }) => {
-  const result: GradingResult = calculateScore(exam, answers);
-  const hasSaved = useRef(false);
+export enum ExamType {
+  PRACTICE = 'PRACTICE', // Làm lúc nào cũng được
+  TEST = 'TEST',         // Có hẹn giờ
+}
 
-  useEffect(() => {
-    // Save result to Database when component mounts
-    const save = async () => {
-      // Chỉ lưu nếu chưa lưu VÀ không phải đang xem lại lịch sử
-      if (!hasSaved.current && !isHistoryMode) {
-          hasSaved.current = true; 
-          console.log("🔵 START SAVING RESULT");
-          
-          await db.saveResult({
-              examId: exam.id,
-              studentInfo,
-              result,
-              answers,
-              completedAt: Date.now(),
-              timeSpent
-          });
-      }
-    };
-    save();
-  }, [exam.id, studentInfo, result, timeSpent, answers, isHistoryMode]);
-  
-  // Helpers
-  const renderOptionStatus = (qId: string, optIdx: number, correctIdx: number) => {
-    const userSelected = answers.part1[qId] === optIdx;
-    const isCorrect = correctIdx === optIdx;
+// Part 1: Multiple Choice (4 options, 1 correct)
+export interface QuestionPart1 {
+  id: string;
+  text: string;
+  options: string[]; // ["A. ...", "B. ...", "C. ...", "D. ..."]
+  correctOption: number; // 0, 1, 2, or 3
+  explanation?: string;
+}
 
-    let classes = "p-3 rounded-lg border text-sm flex justify-between items-center ";
-    if (isCorrect) classes += "bg-green-50 border-green-200 text-green-800 font-medium ";
-    else if (userSelected && !isCorrect) classes += "bg-red-50 border-red-200 text-red-800 ";
-    else classes += "bg-white border-gray-100 text-gray-500 opacity-70 ";
+// Part 2: True/False Group (Question stem + 4 sub-statements)
+export interface SubQuestion {
+  id: string;
+  text: string;
+  isCorrect: boolean;
+}
 
-    return (
-      <div key={optIdx} className={classes}>
-        <span><MathRenderer text={exam.part1.find(q => q.id === qId)?.options[optIdx] || ''} inline /></span>
-        {isCorrect && <CheckCircle className="w-4 h-4 text-green-600" />}
-        {userSelected && !isCorrect && <XCircle className="w-4 h-4 text-red-600" />}
-      </div>
-    );
+export interface QuestionPart2 {
+  id: string;
+  text: string; // The main context/stem
+  subQuestions: SubQuestion[]; // Should be exactly 4 for standard compliance
+  explanation?: string;
+}
+
+// Part 3: Short Answer (Numeric or Text result)
+export interface QuestionPart3 {
+  id: string;
+  text: string;
+  correctAnswer: string;
+  explanation?: string;
+}
+
+// NEW: Score Configuration
+export interface ExamScoreConfig {
+  part1PerQuestion: number; // Default 0.25
+  part2MaxScore: number;    // Default 1.0 (for 4 correct subs)
+  part3PerQuestion: number; // Default 0.5
+}
+
+export interface Exam {
+  id: string;
+  title: string;
+  subject: string;
+  durationMinutes: number;
+  type?: ExamType;         // Loại đề thi
+  scheduledAt?: number;    // Thời gian bắt đầu (Timestamp)
+  answerReleaseAt?: number; // NEW: Thời gian cho phép xem đáp án
+  scoreConfig?: ExamScoreConfig; // Optional for backward compatibility
+  part1: QuestionPart1[];
+  part2: QuestionPart2[];
+  part3: QuestionPart3[];
+  createdAt: number;
+}
+
+// Cập nhật: StudentInfo giờ có thể liên kết với tài khoản
+export interface StudentInfo {
+  name: string;
+  classId: string;
+  studentId: string; // Mã SV (hiển thị)
+  accountId?: string; // ID tài khoản trong DB (ẩn)
+}
+
+export interface StudentAccount {
+  id: string;
+  full_name: string;
+  class_name: string;
+  username: string;
+  password?: string;
+}
+
+export interface StudentAnswers {
+  part1: Record<string, number>; // questionId -> optionIndex
+  part2: Record<string, Record<string, boolean>>; // questionId -> subQuestionId -> boolean (True/False)
+  part3: Record<string, string>; // questionId -> text answer
+}
+
+export interface GradingResult {
+  score: number;
+  maxScore: number;
+  details: {
+    part1Score: number;
+    part2Score: number;
+    part3Score: number;
   };
+}
 
-  // CHECK LOCK STATUS
-  // Nếu là TEST và chưa đến giờ mở đáp án -> Lock
-  const isAnswerLocked = exam.type === ExamType.TEST && 
-                         exam.answerReleaseAt && 
-                         Date.now() < exam.answerReleaseAt;
-
-  return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4">
-      <div className="max-w-4xl mx-auto space-y-6">
-        
-        {/* Score Card */}
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center border-t-8 border-blue-600">
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">
-            {isHistoryMode ? 'Xem lại bài thi' : 'Kết quả làm bài'}
-          </h1>
-          <p className="text-gray-500 mb-6">{exam.title} - {studentInfo.name}</p>
-          
-          <div className="relative inline-flex items-center justify-center">
-             <svg className="w-40 h-40">
-               <circle className="text-gray-100" strokeWidth="8" stroke="currentColor" fill="transparent" r="70" cx="80" cy="80" />
-               <circle 
-                  className="text-blue-600" 
-                  strokeWidth="8" 
-                  strokeDasharray={440}
-                  strokeDashoffset={440 - (440 * result.score / 10)}
-                  strokeLinecap="round" 
-                  stroke="currentColor" 
-                  fill="transparent" 
-                  r="70" cx="80" cy="80" 
-                  transform="rotate(-90 80 80)"
-               />
-             </svg>
-             <div className="absolute flex flex-col items-center">
-               <span className="text-4xl font-extrabold text-blue-900">{result.score.toFixed(2)}</span>
-               <span className="text-xs text-gray-500 font-medium uppercase tracking-wide">Điểm / 10</span>
-             </div>
-          </div>
-
-          <div className="grid grid-cols-3 gap-4 mt-8 max-w-lg mx-auto">
-             <div className="bg-blue-50 p-3 rounded-lg">
-                <p className="text-xs text-blue-600 font-bold uppercase">Phần 1</p>
-                <p className="text-lg font-bold text-blue-900">{result.details.part1Score.toFixed(2)}</p>
-             </div>
-             <div className="bg-indigo-50 p-3 rounded-lg">
-                <p className="text-xs text-indigo-600 font-bold uppercase">Phần 2</p>
-                <p className="text-lg font-bold text-indigo-900">{result.details.part2Score.toFixed(2)}</p>
-             </div>
-             <div className="bg-emerald-50 p-3 rounded-lg">
-                <p className="text-xs text-emerald-600 font-bold uppercase">Phần 3</p>
-                <p className="text-lg font-bold text-emerald-900">{result.details.part3Score.toFixed(2)}</p>
-             </div>
-          </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex gap-4 justify-center">
-            {/* Chỉ hiện nút Làm lại khi vừa thi xong (Không phải xem lịch sử) */}
-            {!isHistoryMode && (
-              <button onClick={onRetry} className="flex items-center gap-2 px-6 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 shadow-lg shadow-blue-200">
-                <RotateCcw className="w-4 h-4" /> Làm lại ngay
-              </button>
-            )}
-            
-            <button onClick={onBack} className="px-6 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
-               {isHistoryMode ? 'Quay lại' : 'Về trang chủ'}
-            </button>
-        </div>
-
-        {/* Detailed Review */}
-        {isAnswerLocked ? (
-            <div className="bg-orange-50 p-8 rounded-xl border border-orange-200 flex flex-col items-center justify-center text-center animate-in fade-in slide-in-from-bottom-4">
-                <div className="bg-orange-100 p-4 rounded-full mb-4">
-                    <Lock className="w-8 h-8 text-orange-600" />
-                </div>
-                <h3 className="text-xl font-bold text-orange-800 mb-2">Đáp án chi tiết chưa được mở</h3>
-                <p className="text-orange-700 max-w-md">
-                    Để đảm bảo công bằng, đáp án chi tiết và lời giải sẽ được công bố vào lúc:
-                </p>
-                <p className="text-lg font-bold text-orange-900 mt-2 bg-white/50 px-4 py-2 rounded-lg border border-orange-200">
-                    {new Date(exam.answerReleaseAt!).toLocaleString('vi-VN')}
-                </p>
-                <p className="text-sm text-orange-600 mt-4 italic">
-                    Vui lòng quay lại lịch sử làm bài sau thời gian trên để xem chi tiết.
-                </p>
-            </div>
-        ) : (
-            <div className="space-y-6">
-            <h3 className="text-xl font-bold text-gray-800 px-2">Chi tiết đáp án & Giải thích</h3>
-            
-            {/* Part 1 Review */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-                <h4 className="font-bold text-blue-600 mb-4 border-b pb-2">Phần 1: Trắc nghiệm</h4>
-                <div className="space-y-8">
-                {exam.part1.map((q, idx) => (
-                    <div key={q.id}>
-                        <div className="flex gap-2 mb-2">
-                        <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white
-                            ${answers.part1[q.id] === q.correctOption ? 'bg-green-500' : 'bg-red-500'}`}>
-                            {idx + 1}
-                        </span>
-                        <div className="font-medium text-gray-900"><MathRenderer text={q.text} /></div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2 ml-8 mb-3">
-                        {q.options.map((opt, oIdx) => renderOptionStatus(q.id, oIdx, q.correctOption))}
-                        </div>
-                        {q.explanation && (
-                        <div className="ml-8 text-sm bg-yellow-50 p-3 rounded text-yellow-800">
-                            <strong>Giải thích:</strong> <MathRenderer text={q.explanation} inline />
-                        </div>
-                        )}
-                    </div>
-                ))}
-                </div>
-            </div>
-
-            {/* Part 2 Review */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-                <h4 className="font-bold text-indigo-600 mb-4 border-b pb-2">Phần 2: Đúng/Sai</h4>
-                <div className="space-y-8">
-                    {exam.part2.map((q, idx) => (
-                    <div key={q.id} className="bg-gray-50/50 p-4 rounded-lg">
-                        <div className="flex gap-2 mb-2">
-                            <span className="w-6 h-6 rounded bg-gray-600 flex items-center justify-center text-xs font-bold text-white">
-                                {idx + 1}
-                            </span>
-                            <div className="font-medium text-gray-900"><MathRenderer text={q.text} /></div>
-                        </div>
-                        <div className="ml-8 space-y-2">
-                            {q.subQuestions.map(sub => {
-                                const userCorrect = answers.part2[q.id]?.[sub.id] === sub.isCorrect;
-                                return (
-                                <div key={sub.id} className={`flex justify-between items-center p-2 rounded text-sm border 
-                                    ${userCorrect ? 'bg-green-50/50 border-green-100' : 'bg-red-50/50 border-red-100'}`}>
-                                    <span><MathRenderer text={sub.text} inline /></span>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs text-gray-500">Đáp án: <strong className={sub.isCorrect ? 'text-green-600' : 'text-red-600'}>{sub.isCorrect ? 'Đúng' : 'Sai'}</strong></span>
-                                        {userCorrect ? <CheckCircle className="w-4 h-4 text-green-500" /> : <XCircle className="w-4 h-4 text-red-500" />}
-                                    </div>
-                                </div>
-                                )
-                            })}
-                        </div>
-                        {q.explanation && (
-                            <div className="ml-8 mt-3 text-sm bg-yellow-50 p-3 rounded text-yellow-800">
-                            <strong>Giải thích:</strong> <MathRenderer text={q.explanation} inline />
-                            </div>
-                        )}
-                    </div>
-                    ))}
-                </div>
-            </div>
-
-            {/* Part 3 Review */}
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-                <h4 className="font-bold text-emerald-600 mb-4 border-b pb-2">Phần 3: Trả lời ngắn</h4>
-                <div className="space-y-6">
-                    {exam.part3.map((q, idx) => {
-                    const userAns = (answers.part3[q.id] || "").trim();
-                    const isCorrect = userAns.toLowerCase() === q.correctAnswer.toLowerCase();
-                    return (
-                        <div key={q.id}>
-                            <div className="flex gap-2 mb-2">
-                                <span className={`w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white
-                                ${isCorrect ? 'bg-green-500' : 'bg-red-500'}`}>
-                                {idx + 1}
-                                </span>
-                                <div className="font-medium text-gray-900"><MathRenderer text={q.text} /></div>
-                            </div>
-                            <div className="ml-8 flex gap-4 items-center">
-                                <div className="flex-1">
-                                <p className="text-xs text-gray-500 mb-1">Câu trả lời của bạn</p>
-                                <div className={`p-2 border rounded ${isCorrect ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
-                                    {userAns || <span className="text-gray-400 italic">Không trả lời</span>}
-                                </div>
-                                </div>
-                                <div className="flex-1">
-                                <p className="text-xs text-gray-500 mb-1">Đáp án đúng</p>
-                                <div className="p-2 border border-green-200 bg-green-50 rounded font-bold text-green-900">
-                                    {q.correctAnswer}
-                                </div>
-                                </div>
-                            </div>
-                            {q.explanation && (
-                            <div className="ml-8 mt-2 text-sm bg-yellow-50 p-3 rounded text-yellow-800">
-                                <strong>Giải thích:</strong> <MathRenderer text={q.explanation} inline />
-                            </div>
-                            )}
-                        </div>
-                    );
-                    })}
-                </div>
-            </div>
-
-            </div>
-        )}
-      </div>
-    </div>
-  );
-};
+export interface StoredResult {
+  id?: string; // Optional ID from Database for updating
+  examId: string;
+  studentInfo: StudentInfo;
+  result: GradingResult;
+  answers?: StudentAnswers; // Added: Store detailed answers
+  completedAt: number;
+  timeSpent: number;
+  
+  // Dùng để hiển thị trong lịch sử
+  examTitle?: string;
+  examSubject?: string;
+}
