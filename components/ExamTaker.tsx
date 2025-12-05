@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Exam, StudentAnswers, StudentInfo, PartType, ExamType } from '../types';
 import { MathRenderer } from './MathRenderer';
-import { Clock, Save } from 'lucide-react';
-
+import { Clock, Save } from 'lucide-react'; // <--- Wait, checking user's input
 interface ExamTakerProps {
   exam: Exam;
   studentInfo: StudentInfo;
